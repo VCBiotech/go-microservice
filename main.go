@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/victorcalderon/go-microservice/application"
+	"victorcalderon/go-microservice/application"
 )
 
 func main() {
