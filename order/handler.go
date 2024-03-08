@@ -1,4 +1,4 @@
-package handler
+package order
 
 import (
 	"encoding/json"
@@ -11,23 +11,20 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
-
-	"victorcalderon/go-microservice/model"
-	"victorcalderon/go-microservice/repository/order"
 )
 
-type Order struct {
-	Repo *order.RedisRepo
+type OrderRepo struct {
+	Repo *RedisRepo
 }
 
 type MsgResponse struct {
 	Message string `json:"message"`
 }
 
-func (o *Order) Create(w http.ResponseWriter, r *http.Request) {
+func (o *OrderRepo) Create(w http.ResponseWriter, r *http.Request) {
 	var body struct {
-		CustomerID uuid.UUID        `json:"customer_id"`
-		LineItems  []model.LineItem `json:"line_items"`
+		CustomerID uuid.UUID  `json:"customer_id"`
+		LineItems  []LineItem `json:"line_items"`
 	}
 
 	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
@@ -36,7 +33,7 @@ func (o *Order) Create(w http.ResponseWriter, r *http.Request) {
 	}
 
 	now := time.Now().UTC()
-	order := model.Order{
+	order := Order{
 		OrderID:    rand.Uint64(),
 		CustomerID: body.CustomerID,
 		LineItems:  body.LineItems,
@@ -61,7 +58,7 @@ func (o *Order) Create(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusCreated)
 }
 
-func (o *Order) List(w http.ResponseWriter, r *http.Request) {
+func (o *OrderRepo) List(w http.ResponseWriter, r *http.Request) {
 	cursorStr := r.URL.Query().Get("cursor")
 	if cursorStr == "" {
 		cursorStr = "0"
@@ -77,7 +74,7 @@ func (o *Order) List(w http.ResponseWriter, r *http.Request) {
 	}
 
 	const size = 50
-	page := order.FindAllPage{Offset: cursor, Size: size}
+	page := FindAllPage{Offset: cursor, Size: size}
 	res, err := o.Repo.FindAll(r.Context(), page)
 	if err != nil {
 		fmt.Println("Failed to find all orders: %w", err)
@@ -86,8 +83,8 @@ func (o *Order) List(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var response struct {
-		Items []model.Order `json:"items"`
-		Next  uint64        `json:"next,omitempty"`
+		Items []Order `json:"items"`
+		Next  uint64  `json:"next,omitempty"`
 	}
 
 	response.Items = res.Orders
@@ -103,7 +100,7 @@ func (o *Order) List(w http.ResponseWriter, r *http.Request) {
 	w.Write(data)
 }
 
-func (o *Order) GetByID(w http.ResponseWriter, r *http.Request) {
+func (o *OrderRepo) GetByID(w http.ResponseWriter, r *http.Request) {
 	idParam := chi.URLParam(r, "id")
 
 	const decimal = 10
@@ -116,7 +113,7 @@ func (o *Order) GetByID(w http.ResponseWriter, r *http.Request) {
 	}
 
 	dbOrder, err := o.Repo.FindById(r.Context(), orderID)
-	if errors.Is(err, order.ErrNotExist) {
+	if errors.Is(err, ErrNotExist) {
 		w.WriteHeader(http.StatusNotFound)
 		return
 	} else if err != nil {
@@ -132,7 +129,7 @@ func (o *Order) GetByID(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func (o *Order) UpdateById(w http.ResponseWriter, r *http.Request) {
+func (o *OrderRepo) UpdateById(w http.ResponseWriter, r *http.Request) {
 	var body struct {
 		Status string `json:"status"`
 	}
@@ -156,7 +153,7 @@ func (o *Order) UpdateById(w http.ResponseWriter, r *http.Request) {
 	}
 
 	dbOrder, err := o.Repo.FindById(r.Context(), orderID)
-	if errors.Is(err, order.ErrNotExist) {
+	if errors.Is(err, ErrNotExist) {
 		w.WriteHeader(http.StatusNotFound)
 		return
 	} else if err != nil {
@@ -214,7 +211,7 @@ func (o *Order) UpdateById(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func (o *Order) DeleteById(w http.ResponseWriter, r *http.Request) {
+func (o *OrderRepo) DeleteById(w http.ResponseWriter, r *http.Request) {
 	idParam := chi.URLParam(r, "id")
 
 	const decimal = 10
@@ -227,7 +224,7 @@ func (o *Order) DeleteById(w http.ResponseWriter, r *http.Request) {
 	}
 
 	err = o.Repo.DeleteById(r.Context(), orderID)
-	if errors.Is(err, order.ErrNotExist) {
+	if errors.Is(err, ErrNotExist) {
 		w.WriteHeader(http.StatusNotFound)
 		return
 	} else if err != nil {

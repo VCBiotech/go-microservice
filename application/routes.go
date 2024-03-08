@@ -6,15 +6,14 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
 
-	"victorcalderon/go-microservice/handler"
-	"victorcalderon/go-microservice/repository/order"
+	"victorcalderon/go-microservice/order"
 )
 
 func (a *App) loadRoutes() {
 	router := chi.NewRouter()
 	router.Use(middleware.Logger)
 
-	router.Get("/", func(w http.ResponseWriter, r *http.Request) {
+	router.Get("/", func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusOK)
 	})
 
@@ -24,7 +23,7 @@ func (a *App) loadRoutes() {
 }
 
 func (a *App) loadOrderRoutes(router chi.Router) {
-	orderHandler := &handler.Order{
+	orderHandler := &order.OrderRepo{
 		Repo: &order.RedisRepo{
 			Client: a.rdb,
 		},
