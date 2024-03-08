@@ -1,6 +1,7 @@
 package order
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -13,8 +14,16 @@ import (
 	"github.com/google/uuid"
 )
 
+type Repo interface {
+	Insert(ctx context.Context, order Order) error
+	FindById(ctx context.Context, id uint64) (Order, error)
+	DeleteById(ctx context.Context, id uint64) error
+	Update(ctx context.Context, order Order) error
+	FindAll(ctx context.Context, page FindAllPage) (FindResult, error)
+}
+
 type OrderRepo struct {
-	Repo *RedisRepo
+	Repo Repo
 }
 
 type MsgResponse struct {
