@@ -18,7 +18,7 @@ func (a *App) loadRoutes() {
 	})
 
 	// App V1
-	router.Route("v1/orders/", a.loadOrderRoutes)
+	router.Route("/v1/orders", a.loadOrderRoutes)
 
 	a.router = router
 }
