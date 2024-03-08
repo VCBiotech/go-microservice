@@ -17,7 +17,8 @@ func (a *App) loadRoutes() {
 		w.WriteHeader(http.StatusOK)
 	})
 
-	router.Route("/orders", a.loadOrderRoutes)
+	// App V1
+	router.Route("v1/orders/", a.loadOrderRoutes)
 
 	a.router = router
 }
