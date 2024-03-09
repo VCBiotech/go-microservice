@@ -73,8 +73,8 @@ func (a *App) Start(ctx context.Context) error {
 		defer cancel()
 		// Shutdown server after said timeout
 		return server.Shutdown(timeout)
-	}
 
-	// Return nil
-	return nil
+	default:
+		return nil
+	}
 }
