@@ -7,6 +7,8 @@
 *.dll
 *.so
 *.dylib
+
+# Built binary
 go-microservice
 
 # Test binary, built with `go test -c`
@@ -23,3 +25,6 @@ go.work
 
 # Also mac stuff
 .DS_Store
+
+# All Temp
+*tmp*

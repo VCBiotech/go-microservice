@@ -2,15 +2,16 @@ package main
 
 import (
 	"context"
-	"fmt"
 	"os"
 	"os/signal"
 
-	"victorcalderon/go-microservice/application"
+	"vcbiotech/microservice/application"
+	"vcbiotech/microservice/telemetry"
 )
 
 func main() {
 	app := application.New(application.LoadConfig())
+	logger := telemetry.GetLogger()
 
 	// Listen for SIGINT
 	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt)
@@ -18,6 +19,6 @@ func main() {
 
 	err := app.Start(ctx)
 	if err != nil {
-		fmt.Println("Failed to start app:", err)
+		logger.Error("Failed to start app: %s", err)
 	}
 }
