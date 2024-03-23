@@ -1,6 +1,7 @@
 package application
 
 import (
+	"fmt"
 	"os"
 	"strconv"
 )
@@ -11,6 +12,7 @@ type DatabaseConfig struct {
 	Username string
 	Password string
 	Host     string
+	SslMode  string
 }
 
 type Config struct {
@@ -22,14 +24,14 @@ type Config struct {
 func LoadConfig() Config {
 	cfg := Config{
 		Database: DatabaseConfig{
-			Name:     "test",
+			Name:     "core",
 			Port:     5432,
 			Username: "postgres",
 			Password: "password",
 			Host:     "localhost",
+			SslMode:  "disable",
 		},
-		RedisAddress: "localhost:6379",
-		ServerPort:   3000,
+		ServerPort: 3000,
 	}
 
 	if databaseName, exists := os.LookupEnv("DB_NAME"); exists {
@@ -40,10 +42,6 @@ func LoadConfig() Config {
 		cfg.Database.Host = databaseHost
 	}
 
-	if redisAddr, exists := os.LookupEnv("REDIS_ADDR"); exists {
-		cfg.RedisAddress = redisAddr
-	}
-
 	if serverPort, exists := os.LookupEnv("SERVER_PORT"); exists {
 		if port, err := strconv.ParseUint(serverPort, 10, 16); err == nil {
 			cfg.ServerPort = uint16(port)
@@ -51,4 +49,21 @@ func LoadConfig() Config {
 	}
 
 	return cfg
+}
+
+func (c *Config) LoadDbUri() string {
+	db := c.Database
+	// Generate db uri
+	databaseUri := fmt.Sprintf(
+		"postgres://%s:%s@%s:%d/%s?sslmode=%s",
+		db.Username,
+		db.Password,
+		db.Host,
+		db.Port,
+		db.Name,
+		db.SslMode,
+	)
+
+	return databaseUri
+
 }

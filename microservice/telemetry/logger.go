@@ -16,18 +16,22 @@ func Tracing(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		// Create Attributes
 		t1 := time.Now()
+
 		logAttrs := map[string]string{
 			"Method":     r.Method,
 			"URI":        r.URL.Path,
 			"RemoteAddr": r.RemoteAddr,
 			"UserAgent":  r.UserAgent(),
 		}
-		logger := NewLogger(r.Context())
-		logger.Info("Request", logAttrs)
+
+		logger := SLogger(r.Context())
+		logger.Info("[START] Request", logAttrs)
+
 		defer func() {
-			logAttrs["Elapsed"] = fmt.Sprintf("%d ms", time.Since(t1).Milliseconds())
-			logger.Info("Request - End", logAttrs)
+			logAttrs["Elapsed"] = fmt.Sprintf("%d µs", time.Since(t1).Microseconds())
+			logger.Info("[END] Request", logAttrs)
 		}()
+
 		next.ServeHTTP(w, r.WithContext(r.Context()))
 	})
 }
@@ -44,7 +48,7 @@ type Logger struct {
 	Warn  LoggerFunc
 }
 
-func NewLogger(ctx context.Context) *Logger {
+func SLogger(ctx context.Context) *Logger {
 	return &Logger{
 		Info:  GetLoggerWithContext(ctx, slog.LevelInfo),
 		Error: GetLoggerWithContext(ctx, slog.LevelError),
@@ -59,7 +63,7 @@ func GetLoggerWithContext(ctx context.Context, level slog.Level) LoggerFunc {
 		reqID := middleware.GetReqID(ctx)
 		if reqID != "" {
 			logAttrs = []slog.Attr{
-				slog.Any("requestID", reqID),
+				slog.String("requestID", reqID),
 			}
 		}
 		for _, m := range a {

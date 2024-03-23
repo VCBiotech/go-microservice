@@ -7,22 +7,22 @@ import (
 	"time"
 
 	"github.com/go-chi/chi/v5"
-	"github.com/redis/go-redis/v9"
+	"github.com/go-chi/chi/v5/middleware"
+	"github.com/go-chi/httprate"
+	"github.com/jmoiron/sqlx"
+	_ "github.com/lib/pq"
 
 	"vcbiotech/microservice/telemetry"
 )
 
 type App struct {
 	router *chi.Mux
-	rdb    *redis.Client
+	db     *sqlx.DB
 	config Config
 }
 
 func New(config Config) *App {
 	app := &App{
-		rdb: redis.NewClient(&redis.Options{
-			Addr: config.RedisAddress,
-		}),
 		config: config,
 	}
 
@@ -32,27 +32,33 @@ func New(config Config) *App {
 }
 
 func (a *App) Start(ctx context.Context) error {
-	logger := telemetry.GetLogger()
+	logger := telemetry.SLogger(ctx)
 
 	// Start server
 	server := &http.Server{
-		Addr:    fmt.Sprintf(":%d", a.config.ServerPort),
+		Addr:    fmt.Sprintf("localhost:%d", a.config.ServerPort),
 		Handler: a.router,
 	}
 
-	// Check if redis is working
-	err := a.rdb.Ping(ctx).Err()
+	// Connecto to database
+	db, err := sqlx.Connect("postgres", a.config.LoadDbUri())
 	if err != nil {
-		return fmt.Errorf("Failed to connect to redis: %w", err)
+		errMsg := map[string]string{"Error": err.Error()}
+		logger.Error("Could not connect to database.", errMsg)
 	}
 
+	// Add connection to current app
+	a.db = db
+
+	// Close after you're done
 	defer func() {
-		if err := a.rdb.Close(); err != nil {
-			logger.Error("Failed to close Redis Client: %s", err)
+		if err := a.db.Close(); err != nil {
+			errMsg := map[string]string{"Error": err.Error()}
+			logger.Error("Failed to close postgres Client", errMsg)
 		}
 	}()
 
-	logger.Info("Starting application server")
+	logger.Info("Starting application server...")
 
 	ch := make(chan error, 1)
 
@@ -84,3 +90,38 @@ func (a *App) Start(ctx context.Context) error {
 		return server.Shutdown(timeout)
 	}
 }
+
+func (a *App) loadMiddleware() {
+	router := chi.NewRouter()
+	router.Use(middleware.RequestID)
+	router.Use(middleware.RealIP)
+	router.Use(telemetry.Tracing)
+	router.Use(middleware.Recoverer)
+	router.Use(middleware.Heartbeat("/auth/health"))
+	router.Use(httprate.LimitByIP(500, 1*time.Minute))
+	a.router = router
+}
+
+func (a *App) loadRoutes() {
+	a.router.Get("/auth", func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte("VCBiotech Microservice."))
+	})
+
+	// App V1
+	a.router.Route("/auth/v1/user", a.loadUserRoutes)
+}
+
+// func (a *App) loadOrderRoutes(router chi.Router) {
+// 	orderHandler := &order.OrderRepo{
+// 		Repo: &order.RedisRepo{
+// 			Client: a.rdb,
+// 		},
+// 	}
+//
+// 	router.Post("/", orderHandler.Create)
+// 	router.Get("/", orderHandler.List)
+// 	router.Get("/{id}", orderHandler.GetByID)
+// 	router.Put("/{id}", orderHandler.UpdateById)
+// 	router.Delete("/{id}", orderHandler.DeleteById)
+// }

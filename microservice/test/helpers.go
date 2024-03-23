@@ -25,7 +25,7 @@ type TestApp struct {
 
 func configureDatabase(c *application.DatabaseConfig) *sqlx.DB {
 	// Get logger
-	logger := telemetry.NewLogger(context.Background())
+	logger := telemetry.SLogger(context.Background())
 	// Get a connection using sqlx
 	connWithoutDB := fmt.Sprintf(
 		"postgres://%s:%s@%s:%d?sslmode=disable",
@@ -34,11 +34,11 @@ func configureDatabase(c *application.DatabaseConfig) *sqlx.DB {
 	// Force connection, ping and panic on failure
 	db := sqlx.MustConnect("postgres", connWithoutDB)
 	// Create a database with this new connection
-	query := fmt.Sprintf("CREATE DATABASE db_%s", c.Name)
+	query := fmt.Sprintf("CREATE DATABASE %s", c.Name)
 	db.MustExec(query)
 	// Get a connection using sqlx
 	connWithDB := fmt.Sprintf(
-		"postgres://%s:%s@%s:%d/db_%s?sslmode=disable",
+		"postgres://%s:%s@%s:%d/%s?sslmode=disable",
 		c.Username, c.Password, c.Host, c.Port, c.Name,
 	)
 	logger.Info("Running migrations...")
@@ -66,13 +66,15 @@ func spawnTestApp() *TestApp {
 	// Load config
 	config := application.LoadConfig()
 	// Change database name
-	config.Database.Name = fmt.Sprint(rand.Uint64())
+	config.Database.Name = fmt.Sprintf("db_%d", rand.Uint64())
+	// Configure database
+	db := configureDatabase(&config.Database)
 	// Build and return application
 	app := application.New(config)
 	// Run app in the background
 	go app.Start(context.Background())
-	// Configure database
-	db := configureDatabase(&config.Database)
+	// Wait for app to start
+	time.Sleep(time.Duration(100 * time.Millisecond))
 	// Build a test client
 	client := http.Client{CheckRedirect: nil, Timeout: time.Duration(2) * time.Second}
 	host := fmt.Sprintf("localhost:%d", config.ServerPort)

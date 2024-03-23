@@ -18,13 +18,16 @@ help: ##@Help Show this help
 
 dev: ##@Application Run development server with hot reload
 	lsof -t -i tcp:3000 | xargs kill -9
-	air
+	air | jq -R "fromjson?"
 
 build: ##@Build build the application using Go compiler
 	docker build --tag 'dev' .
 
 run:  ##@Application Run application locally
 	docker run --detach 'dev'
+
+init-db: ##@Database create a development database
+	chmod +x ./scripts/init_db.sh && ./scripts/init_db.sh
 
 shell:  #@Application Run Poetry Shell
 	echo "To do!"

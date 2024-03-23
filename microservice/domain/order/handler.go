@@ -30,6 +30,8 @@ type MsgResponse struct {
 	Message string `json:"message"`
 }
 
+var ErrNotExist = errors.New("Order does not exist")
+
 func (o *OrderRepo) Create(w http.ResponseWriter, r *http.Request) {
 	var body struct {
 		CustomerID uuid.UUID  `json:"customer_id"`
