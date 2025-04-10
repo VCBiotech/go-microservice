@@ -24,7 +24,7 @@ type Config struct {
 func LoadConfig() Config {
 	cfg := Config{
 		Database: DatabaseConfig{
-			Name:     "core",
+			Name:     "file_manager",
 			Port:     5432,
 			Username: "postgres",
 			Password: "password",

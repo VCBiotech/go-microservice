@@ -67,7 +67,7 @@ func (a *App) Start(ctx context.Context) error {
 		// Handle error on startup
 		err = server.ListenAndServe()
 		if err != nil {
-			ch <- fmt.Errorf("Failed to start server: %w", err)
+			ch <- fmt.Errorf("failed to start server: %w", err)
 		}
 		// Close the channel
 		close(ch)
@@ -97,19 +97,19 @@ func (a *App) loadMiddleware() {
 	router.Use(middleware.RealIP)
 	router.Use(telemetry.Tracing)
 	router.Use(middleware.Recoverer)
-	router.Use(middleware.Heartbeat("/auth/health"))
+	router.Use(middleware.Heartbeat("/health"))
 	router.Use(httprate.LimitByIP(500, 1*time.Minute))
 	a.router = router
 }
 
 func (a *App) loadRoutes() {
-	a.router.Get("/auth", func(w http.ResponseWriter, _ *http.Request) {
+	a.router.Get("/", func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusOK)
-		w.Write([]byte("VCBiotech Microservice."))
+		w.Write([]byte("File Manager Service."))
 	})
 
 	// App V1
-	a.router.Route("/auth/v1/user", a.loadUserRoutes)
+	a.router.Route("/v1/user", a.loadUserRoutes)
 }
 
 // func (a *App) loadOrderRoutes(router chi.Router) {
