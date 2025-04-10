@@ -1,5 +1,5 @@
 # Thank you https://github.com/dreth/dac.ac-go/blob/main/Dockerfile
-FROM golang:1.22-alpine AS builder
+FROM golang:1.24-alpine AS builder
 
 # Move to working directory (/build).
 WORKDIR /build
@@ -12,7 +12,7 @@ RUN go mod download
 COPY . .
 
 # Set necessary environment variables needed for our image and build the API server.
-ENV CGO_ENABLED=0 GOOS=linux GOARCH=amd64
+ENV CGO_ENABLED=0 GOOS=linux GOARCH=arm64
 RUN go build -ldflags="-s -w" -o main .
 
 # Empty image

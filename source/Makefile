@@ -21,10 +21,10 @@ dev: ##@Application Run development server with hot reload
 	air | jq -R "fromjson?"
 
 build: ##@Build build the application using Go compiler
-	docker build --tag 'dev' .
+	docker build --tag 'vcbiotech/equilibria-files:latest' .
 
 run:  ##@Application Run application locally
-	docker run --detach 'dev'
+	docker run --detach 'vcbiotech/equilibria-files:latest'
 
 init-db: ##@Database create a development database
 	chmod +x ./scripts/init_db.sh && ./scripts/init_db.sh
