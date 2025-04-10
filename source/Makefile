@@ -10,6 +10,10 @@ HELP_FUN = \
 
 args = $(filter-out $@,$(MAKECMDGOALS))
 
+# REPOSITORY
+REPOSITORY = vcbiotech/equilibria-files
+ECR_URI = 533267214646.dkr.ecr.us-east-1.amazonaws.com
+ECR_REGION = us-east-1
 
 # Commands
 help: ##@Help Show this help
@@ -21,10 +25,25 @@ dev: ##@Application Run development server with hot reload
 	air | jq -R "fromjson?"
 
 build: ##@Build build the application using Go compiler
-	docker build --tag 'vcbiotech/equilibria-files:latest' .
+	docker build --tag '$(REPOSITORY):latest' .
+
+ecr-login: ##@ECR Login to ECR
+	aws ecr get-login-password --region us-east-1 | docker login --username AWS --password-stdin $(ECR_URI)
+
+tag: ##@Build tag the application
+	docker tag $(REPOSITORY):latest $(ECR_URI)/$(REPOSITORY):latest
+
+push: ##@Build push the application to ECR
+	docker push $(ECR_URI)/$(REPOSITORY):latest
+
+build-push: ##@Build and push the application to ECR
+	make ecr-login
+	make build
+	make tag
+	make push
 
 run:  ##@Application Run application locally
-	docker run --detach 'vcbiotech/equilibria-files:latest'
+	docker run --detach $(REPOSITORY):latest
 
 init-db: ##@Database create a development database
 	chmod +x ./scripts/init_db.sh && ./scripts/init_db.sh
