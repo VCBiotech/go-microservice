@@ -59,6 +59,6 @@ done
 >&2 echo "Postgres is up and running on port ${DB_PORT} - running migrations now!"
 
 export DATABASE_URL=postgres://${DB_USER}:${DB_PASSWORD}@${DB_HOST}:${DB_PORT}/${DB_NAME}?sslmode=${DB_SSL}
-migrate -path migrations -database ${DATABASE_URL} -verbose up
+migrate -path ../migrations -database ${DATABASE_URL} -verbose up
 
 >&2 echo "Postgres has been migrated, ready to go!"

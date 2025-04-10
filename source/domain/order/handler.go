@@ -147,7 +147,8 @@ func (o *OrderRepo) UpdateById(w http.ResponseWriter, r *http.Request) {
 
 	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
 		w.WriteHeader(http.StatusBadRequest)
-		w.Write([]byte(fmt.Sprint("Refer to API docs for endpoint requirements.")))
+		err_msg := MsgResponse{Message: "Refer to API docs for endpoint requirements."}
+		json.NewEncoder(w).Encode(err_msg)
 		return
 	}
 
@@ -159,7 +160,8 @@ func (o *OrderRepo) UpdateById(w http.ResponseWriter, r *http.Request) {
 	orderID, err := strconv.ParseUint(idParam, decimal, bitSize)
 	if err != nil {
 		w.WriteHeader(http.StatusBadRequest)
-		w.Write([]byte(fmt.Sprint("OrderID must be included and be an integer.")))
+		err_msg := MsgResponse{Message: "OrderID must be included and be an integer."}
+		json.NewEncoder(w).Encode(err_msg)
 		return
 	}
 
@@ -169,7 +171,7 @@ func (o *OrderRepo) UpdateById(w http.ResponseWriter, r *http.Request) {
 		return
 	} else if err != nil {
 		fmt.Println("Failed to find order: %w", err)
-		err_msg := MsgResponse{Message: fmt.Sprint("Please, try again later!")}
+		err_msg := MsgResponse{Message: "Please, try again later!"}
 		json.NewEncoder(w).Encode(err_msg)
 		w.WriteHeader(http.StatusInternalServerError)
 		return
@@ -183,7 +185,7 @@ func (o *OrderRepo) UpdateById(w http.ResponseWriter, r *http.Request) {
 	case shippedStatus:
 		if dbOrder.ShippedAt != nil {
 			w.WriteHeader(http.StatusBadRequest)
-			err_msg := MsgResponse{Message: fmt.Sprint("This order has already been shipped!")}
+			err_msg := MsgResponse{Message: "This order has already been shipped!"}
 			json.NewEncoder(w).Encode(err_msg)
 			return
 		}
@@ -191,19 +193,19 @@ func (o *OrderRepo) UpdateById(w http.ResponseWriter, r *http.Request) {
 	case completedStatus:
 		if dbOrder.ShippedAt == nil {
 			w.WriteHeader(http.StatusBadRequest)
-			err_msg := MsgResponse{Message: fmt.Sprint("This order hasn't been shipped!")}
+			err_msg := MsgResponse{Message: "This order hasn't been shipped!"}
 			json.NewEncoder(w).Encode(err_msg)
 			return
 		} else if dbOrder.CompletedAt != nil {
 			w.WriteHeader(http.StatusBadRequest)
-			err_msg := MsgResponse{Message: fmt.Sprint("This order has already been completed!")}
+			err_msg := MsgResponse{Message: "This order has already been completed!"}
 			json.NewEncoder(w).Encode(err_msg)
 			return
 		}
 		dbOrder.CompletedAt = &now
 	default:
 		w.WriteHeader(http.StatusBadRequest)
-		err_msg := MsgResponse{Message: fmt.Sprint("Allowed status: ['shipped', 'completed']!")}
+		err_msg := MsgResponse{Message: "Allowed status: ['shipped', 'completed']!"}
 		json.NewEncoder(w).Encode(err_msg)
 		return
 	}

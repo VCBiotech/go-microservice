@@ -3,6 +3,7 @@ package application
 import (
 	"context"
 	"fmt"
+	"log"
 	"net/http"
 	"time"
 
@@ -26,6 +27,16 @@ func New(config Config) *App {
 		config: config,
 	}
 
+	// Connect to database
+	db, err := sqlx.Connect("postgres", config.LoadDbUri())
+	if err != nil {
+		errMsg := map[string]string{"Error": err.Error()}
+		log.Println("Could not connect to database.", errMsg)
+	} else {
+		// Add connection to current app
+		app.db = db
+	}
+
 	app.loadMiddleware()
 	app.loadRoutes()
 	return app
@@ -40,24 +51,7 @@ func (a *App) Start(ctx context.Context) error {
 		Handler: a.router,
 	}
 
-	// Connecto to database
-	db, err := sqlx.Connect("postgres", a.config.LoadDbUri())
-	if err != nil {
-		errMsg := map[string]string{"Error": err.Error()}
-		logger.Error("Could not connect to database.", errMsg)
-	}
-
-	// Add connection to current app
-	a.db = db
-
-	// Close after you're done
-	defer func() {
-		if err := a.db.Close(); err != nil {
-			errMsg := map[string]string{"Error": err.Error()}
-			logger.Error("Failed to close postgres Client", errMsg)
-		}
-	}()
-
+	// Database connection is now established in New()
 	logger.Info("Starting application server...")
 
 	ch := make(chan error, 1)
@@ -65,7 +59,7 @@ func (a *App) Start(ctx context.Context) error {
 	// Call the main function using another thread
 	go func() {
 		// Handle error on startup
-		err = server.ListenAndServe()
+		err := server.ListenAndServe()
 		if err != nil {
 			ch <- fmt.Errorf("failed to start server: %w", err)
 		}
@@ -78,10 +72,17 @@ func (a *App) Start(ctx context.Context) error {
 
 	select {
 	// Select one of the channels, the one that returns first
-	case err = <-ch: // This channel returns if the server dies
+	case err := <-ch: // This channel returns if the server dies
 		return err
 	case <-ctx.Done(): // This channel returns on SIGINT
 		logger.Info("Shutting down gracefully...")
+		// Close database connection
+		if a.db != nil {
+			if err := a.db.Close(); err != nil {
+				errMsg := map[string]string{"Error": err.Error()}
+				logger.Error("Failed to close postgres Client", errMsg)
+			}
+		}
 		// Let's have a graceful timeout of 10 seconds
 		timeout, cancel := context.WithTimeout(context.Background(), time.Second*10)
 		// Run Cancel at the very end of execution

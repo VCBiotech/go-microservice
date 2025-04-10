@@ -78,7 +78,7 @@ func LoadConfig() Config {
 				log.Fatalf("Error parsing port: %v", err)
 			}
 
-			if len(matches) == 5 {
+			if len(matches) == 6 {
 				cfg.Database.Username = matches[1]
 				cfg.Database.Password = matches[2]
 				cfg.Database.Host = matches[3]
