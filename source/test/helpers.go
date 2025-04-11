@@ -2,28 +2,28 @@ package test
 
 import (
 	"context"
+	"database/sql"
 	"fmt"
 	"math/rand"
 	"net/http"
 	"time"
 
+	"vcbiotech/microservice/application"
+	"vcbiotech/microservice/telemetry"
+
 	"github.com/golang-migrate/migrate/v4"
 	_ "github.com/golang-migrate/migrate/v4/database/postgres"
 	_ "github.com/golang-migrate/migrate/v4/source/file"
-	"github.com/jmoiron/sqlx"
-
-	"vcbiotech/microservice/application"
-	"vcbiotech/microservice/telemetry"
 )
 
 type TestApp struct {
 	Host   string
 	Config application.Config
-	DBPool *sqlx.DB
+	DBPool *sql.DB
 	Client http.Client
 }
 
-func configureDatabase(c *application.DatabaseConfig) *sqlx.DB {
+func configureDatabase(c *application.DatabaseConfig) *sql.DB {
 	// Get logger
 	logger := telemetry.SLogger(context.Background())
 	// Get a connection using sqlx
@@ -32,10 +32,18 @@ func configureDatabase(c *application.DatabaseConfig) *sqlx.DB {
 		c.Username, c.Password, c.Host, c.Port,
 	)
 	// Force connection, ping and panic on failure
-	db := sqlx.MustConnect("postgres", connWithoutDB)
+	db, err := sql.Open("postgres", connWithoutDB)
+	if err != nil {
+		errAttrs := map[string]string{"Error": err.Error()}
+		logger.Error("Could not connect to database.", errAttrs)
+	}
 	// Create a database with this new connection
 	query := fmt.Sprintf("CREATE DATABASE %s", c.Name)
-	db.MustExec(query)
+	_, err = db.Exec(query)
+	if err != nil {
+		errAttrs := map[string]string{"Error": err.Error()}
+		logger.Error("Could not create database.", errAttrs)
+	}
 	// Get a connection using sqlx
 	connWithDB := fmt.Sprintf(
 		"postgres://%s:%s@%s:%d/%s?sslmode=disable",
@@ -59,7 +67,7 @@ func configureDatabase(c *application.DatabaseConfig) *sqlx.DB {
 	}
 	logger.Info("Running ran successfully!")
 	// Return a connection ready to be used
-	return sqlx.MustConnect("postgres", connWithDB)
+	return db
 }
 
 func spawnTestApp() *TestApp {

@@ -2,13 +2,12 @@ package user
 
 import (
 	"context"
+	"database/sql"
 	"time"
-
-	"github.com/jmoiron/sqlx"
 )
 
 type SQLRepo struct {
-	Client *sqlx.DB
+	Client *sql.DB
 }
 
 // createUser inserts a new user into the database.
@@ -22,7 +21,7 @@ func (repo *SQLRepo) Insert(ctx context.Context, user *User) error {
 func (repo *SQLRepo) Find(ctx context.Context, id uint64) (*User, error) {
 	user := User{}
 	query := `SELECT * FROM users WHERE id = $1`
-	err := repo.Client.Get(&user, query, id)
+	err := repo.Client.QueryRow(query, id).Scan(&user.ID, &user.Email, &user.PasswordHash, &user.CreatedAt, &user.UpdatedAt)
 	return &user, err
 }
 
@@ -54,10 +53,22 @@ type FindResult struct {
 func (repo *SQLRepo) FindAll(ctx context.Context, page FindAllPage) (FindResult, error) {
 	users := []User{}
 	query := `SELECT * FROM users ORDER BY id LIMIT $1 OFFSET $2`
-	err := repo.Client.Select(&users, query, page.Size, page.Offset)
+	rows, err := repo.Client.Query(query, page.Size, page.Offset)
 	if err != nil {
 		return FindResult{}, err
 	}
+	defer rows.Close()
+
+	for rows.Next() {
+		var user User
+		err := rows.Scan(&user.ID, &user.Email, &user.PasswordHash, &user.CreatedAt, &user.UpdatedAt)
+		if err != nil {
+			return FindResult{}, err
+		}
+		users = append(users, user)
+	}
+
+	defer rows.Close()
 
 	// The cursor could be set to the next offset or a more complex pagination token
 	nextCursor := page.Offset + uint64(len(users))

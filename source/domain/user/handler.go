@@ -11,7 +11,7 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/go-chi/chi/v5"
+	"github.com/labstack/echo/v4"
 	"golang.org/x/crypto/argon2"
 
 	"vcbiotech/microservice/telemetry"
@@ -35,18 +35,17 @@ type MsgResponse struct {
 
 var ErrNotExist = errors.New("User does not exist")
 
-func (u *UserRepo) Create(w http.ResponseWriter, r *http.Request) {
-	logger := telemetry.SLogger(r.Context())
+func (u *UserRepo) Create(c echo.Context) error {
+	logger := telemetry.SLogger(c.Request().Context())
 	var body struct {
 		Email    string `json:"email"`
 		Password string `json:"password"` // Assume this will be hashed before storage
 	}
 
-	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
-		w.WriteHeader(http.StatusBadRequest)
+	if err := json.NewDecoder(c.Request().Body).Decode(&body); err != nil {
 		errMsg := map[string]string{"Error": err.Error()}
 		logger.Info("Could not decode body", errMsg)
-		return
+		return c.JSON(http.StatusBadRequest, map[string]string{"Error": err.Error()})
 	}
 
 	// Hash the password before storing it
@@ -54,8 +53,7 @@ func (u *UserRepo) Create(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		errMsg := map[string]string{"Error": err.Error()}
 		logger.Error("Could not hash password", errMsg)
-		w.WriteHeader(http.StatusInternalServerError)
-		return
+		return c.JSON(http.StatusInternalServerError, map[string]string{"Error": err.Error()})
 	}
 
 	user := User{
@@ -63,30 +61,26 @@ func (u *UserRepo) Create(w http.ResponseWriter, r *http.Request) {
 		PasswordHash: passwordHash,
 	}
 
-	err = u.Repo.Insert(r.Context(), &user)
+	err = u.Repo.Insert(c.Request().Context(), &user)
 	if err != nil {
 		errMsg := map[string]string{"Error": err.Error()}
 		logger.Error("Failed to insert new user", errMsg)
-		w.WriteHeader(http.StatusInternalServerError)
-		return
+		return c.JSON(http.StatusInternalServerError, map[string]string{"Error": err.Error()})
 	}
 
 	res, err := json.Marshal(user)
 	if err != nil {
 		errMsg := map[string]string{"Error": err.Error()}
 		logger.Error("Failed to marshal new user", errMsg)
-		w.WriteHeader(http.StatusInternalServerError)
-		return
+		return c.JSON(http.StatusInternalServerError, map[string]string{"Error": err.Error()})
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusCreated)
-	w.Write(res)
+	return c.JSON(http.StatusCreated, res)
 }
 
-func (u *UserRepo) List(w http.ResponseWriter, r *http.Request) {
-	logger := telemetry.SLogger(r.Context())
-	cursorStr := r.URL.Query().Get("cursor")
+func (u *UserRepo) List(c echo.Context) error {
+	logger := telemetry.SLogger(c.Request().Context())
+	cursorStr := c.QueryParam("cursor")
 	if cursorStr == "" {
 		cursorStr = "0"
 	}
@@ -98,18 +92,16 @@ func (u *UserRepo) List(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		errMsg := map[string]string{"Error": err.Error()}
 		logger.Info("Could not parse cursor", errMsg)
-		w.WriteHeader(http.StatusBadRequest)
-		return
+		return c.JSON(http.StatusBadRequest, map[string]string{"Error": err.Error()})
 	}
 
 	const size = 50
 	page := FindAllPage{Offset: cursor, Size: size}
-	res, err := u.Repo.FindAll(r.Context(), page)
+	res, err := u.Repo.FindAll(c.Request().Context(), page)
 	if err != nil {
 		errMsg := map[string]string{"Error": err.Error()}
 		logger.Error("Failed to find page of Users", errMsg)
-		w.WriteHeader(http.StatusInternalServerError)
-		return
+		return c.JSON(http.StatusInternalServerError, map[string]string{"Error": err.Error()})
 	}
 
 	var response struct {
@@ -120,22 +112,12 @@ func (u *UserRepo) List(w http.ResponseWriter, r *http.Request) {
 	response.Items = res.Users
 	response.Next = res.Cursor
 
-	data, err := json.Marshal(response)
-	if err != nil {
-		errMsg := map[string]string{"Error": err.Error()}
-		logger.Error("Failed to Marshal users from database", errMsg)
-		w.WriteHeader(http.StatusInternalServerError)
-		return
-	}
-
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusOK)
-	w.Write(data)
+	return c.JSON(http.StatusOK, response)
 }
 
-func (u *UserRepo) GetByID(w http.ResponseWriter, r *http.Request) {
-	logger := telemetry.SLogger(r.Context())
-	idParam := chi.URLParam(r, "id")
+func (u *UserRepo) GetByID(c echo.Context) error {
+	logger := telemetry.SLogger(c.Request().Context())
+	idParam := c.QueryParam("id")
 	const decimal = 10
 	const bitSize = 64
 
@@ -143,47 +125,42 @@ func (u *UserRepo) GetByID(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		errMsg := map[string]string{"Error": err.Error()}
 		logger.Info("Could not parse id", errMsg)
-		w.WriteHeader(http.StatusBadRequest)
-		return
+		return c.JSON(http.StatusBadRequest, map[string]string{"Error": err.Error()})
 	}
 
-	dbUser, err := u.Repo.Find(r.Context(), userID)
+	dbUser, err := u.Repo.Find(c.Request().Context(), userID)
 	if errors.Is(err, ErrNotExist) {
 		errMsg := map[string]string{"Error": err.Error()}
 		logger.Info("User does not exist", errMsg)
-		w.WriteHeader(http.StatusNotFound)
-		return
+		return c.JSON(http.StatusNotFound, map[string]string{"Error": err.Error()})
 	} else if err != nil {
 		errMsg := map[string]string{"Error": err.Error()}
 		logger.Error("Failed to find user", errMsg)
-		w.WriteHeader(http.StatusInternalServerError)
-		return
+		return c.JSON(http.StatusInternalServerError, map[string]string{"Error": err.Error()})
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	if err := json.NewEncoder(w).Encode(dbUser); err != nil {
+	if err := json.NewEncoder(c.Response().Writer).Encode(dbUser); err != nil {
 		errMsg := map[string]string{"Error": err.Error()}
 		logger.Error("Failed to Marshal user.", errMsg)
-		w.WriteHeader(http.StatusInternalServerError)
-		return
+		return c.JSON(http.StatusInternalServerError, map[string]string{"Error": err.Error()})
 	}
+
+	return nil
 }
 
-func (u *UserRepo) UpdateById(w http.ResponseWriter, r *http.Request) {
-	logger := telemetry.SLogger(r.Context())
+func (u *UserRepo) UpdateById(c echo.Context) error {
+	logger := telemetry.SLogger(c.Request().Context())
 	var body struct {
 		Email string `json:"email"`
 	}
 
-	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+	if err := json.NewDecoder(c.Request().Body).Decode(&body); err != nil {
 		errMsg := map[string]string{"Error": err.Error()}
 		logger.Info("Failed to decode body", errMsg)
-		w.WriteHeader(http.StatusBadRequest)
-		w.Write([]byte("Refer to API docs for endpoint requirements."))
-		return
+		return c.JSON(http.StatusBadRequest, map[string]string{"Error": err.Error()})
 	}
 
-	idParam := chi.URLParam(r, "id")
+	idParam := c.QueryParam("id")
 	const decimal = 10
 	const bitSize = 64
 
@@ -191,22 +168,18 @@ func (u *UserRepo) UpdateById(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		errMsg := map[string]string{"Error": err.Error()}
 		logger.Info("ID was poorly formatted", errMsg)
-		w.WriteHeader(http.StatusBadRequest)
-		w.Write([]byte("UserID must be included and be an integer."))
-		return
+		return c.JSON(http.StatusBadRequest, map[string]string{"Error": err.Error()})
 	}
 
-	dbUser, err := u.Repo.Find(r.Context(), userID)
+	dbUser, err := u.Repo.Find(c.Request().Context(), userID)
 	if errors.Is(err, ErrNotExist) {
 		errMsg := map[string]string{"Error": err.Error()}
 		logger.Info("User could not be found", errMsg)
-		w.WriteHeader(http.StatusNotFound)
-		return
+		return c.JSON(http.StatusNotFound, map[string]string{"Error": err.Error()})
 	} else if err != nil {
 		errMsg := map[string]string{"Error": err.Error()}
 		logger.Error("Failed to find user", errMsg)
-		w.WriteHeader(http.StatusInternalServerError)
-		return
+		return c.JSON(http.StatusInternalServerError, map[string]string{"Error": err.Error()})
 	}
 
 	// Update the user's email
@@ -215,26 +188,25 @@ func (u *UserRepo) UpdateById(w http.ResponseWriter, r *http.Request) {
 		dbUser.UpdatedAt = time.Now().UTC()
 	}
 
-	err = u.Repo.Update(r.Context(), dbUser)
+	err = u.Repo.Update(c.Request().Context(), dbUser)
 	if err != nil {
 		errMsg := map[string]string{"Error": err.Error()}
 		logger.Error("Failed to update user", errMsg)
-		w.WriteHeader(http.StatusInternalServerError)
-		return
+		return c.JSON(http.StatusInternalServerError, map[string]string{"Error": err.Error()})
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	if err := json.NewEncoder(w).Encode(dbUser); err != nil {
+	if err := json.NewEncoder(c.Response().Writer).Encode(dbUser); err != nil {
 		errMsg := map[string]string{"Error": err.Error()}
 		logger.Error("Failed to marshal user", errMsg)
-		w.WriteHeader(http.StatusInternalServerError)
-		return
+		return c.JSON(http.StatusInternalServerError, map[string]string{"Error": err.Error()})
 	}
+
+	return nil
 }
 
-func (u *UserRepo) DeleteById(w http.ResponseWriter, r *http.Request) {
-	logger := telemetry.SLogger(r.Context())
-	idParam := chi.URLParam(r, "id")
+func (u *UserRepo) DeleteById(c echo.Context) error {
+	logger := telemetry.SLogger(c.Request().Context())
+	idParam := c.QueryParam("id")
 
 	const decimal = 10
 	const bitSize = 64
@@ -243,24 +215,21 @@ func (u *UserRepo) DeleteById(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		errMsg := map[string]string{"Error": err.Error()}
 		logger.Info("Failed to parse id", errMsg)
-		w.WriteHeader(http.StatusBadRequest)
-		return
+		return c.JSON(http.StatusBadRequest, map[string]string{"Error": err.Error()})
 	}
 
-	err = u.Repo.Delete(r.Context(), userID)
+	err = u.Repo.Delete(c.Request().Context(), userID)
 	if errors.Is(err, ErrNotExist) {
 		errMsg := map[string]string{"Error": err.Error()}
 		logger.Info("User does not exist", errMsg)
-		w.WriteHeader(http.StatusNotFound)
-		return
+		return c.JSON(http.StatusNotFound, map[string]string{"Error": err.Error()})
 	} else if err != nil {
 		errMsg := map[string]string{"Error": err.Error()}
 		logger.Error("Failed to delete user", errMsg)
-		w.WriteHeader(http.StatusInternalServerError)
-		return
+		return c.JSON(http.StatusInternalServerError, map[string]string{"Error": err.Error()})
 	}
 
-	w.WriteHeader(http.StatusNoContent)
+	return c.JSON(http.StatusNoContent, nil)
 }
 
 // hashPassword would be a function to hash the password before storing it in your database

@@ -8,7 +8,7 @@ func TestE2EHealthCheck(t *testing.T) {
 	// Arange
 	app := spawnTestApp()
 	// Act
-	resp, err := app.Client.Get("http://localhost:3000/auth/health")
+	resp, err := app.Client.Get("http://" + app.Host + "/api/health")
 	if err != nil {
 		t.Errorf("Error %s", err)
 	}

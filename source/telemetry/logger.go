@@ -4,36 +4,37 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
-	"net/http"
 	"os"
 	"time"
 
-	"github.com/go-chi/chi/v5/middleware"
+	"github.com/labstack/echo/v4"
 )
 
 // HTTP middleware setting a value on the request context
-func Tracing(next http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		// Create Attributes
-		t1 := time.Now()
+func Tracing() echo.MiddlewareFunc {
+	return func(next echo.HandlerFunc) echo.HandlerFunc {
+		return func(c echo.Context) error {
+			// Create Attributes
+			t1 := time.Now()
 
-		logAttrs := map[string]string{
-			"Method":     r.Method,
-			"URI":        r.URL.Path,
-			"RemoteAddr": r.RemoteAddr,
-			"UserAgent":  r.UserAgent(),
+			logAttrs := map[string]string{
+				"Method":     c.Request().Method,
+				"URI":        c.Request().URL.Path,
+				"RemoteAddr": c.Request().RemoteAddr,
+				"UserAgent":  c.Request().UserAgent(),
+			}
+
+			logger := SLogger(c.Request().Context())
+			logger.Info("[START] Request", logAttrs)
+
+			defer func() {
+				logAttrs["Elapsed"] = fmt.Sprintf("%d µs", time.Since(t1).Microseconds())
+				logger.Info("[END] Request", logAttrs)
+			}()
+
+			return next(c)
 		}
-
-		logger := SLogger(r.Context())
-		logger.Info("[START] Request", logAttrs)
-
-		defer func() {
-			logAttrs["Elapsed"] = fmt.Sprintf("%d µs", time.Since(t1).Microseconds())
-			logger.Info("[END] Request", logAttrs)
-		}()
-
-		next.ServeHTTP(w, r.WithContext(r.Context()))
-	})
+	}
 }
 
 func GetLogger() *slog.Logger {
@@ -60,12 +61,17 @@ func GetLoggerWithContext(ctx context.Context, level slog.Level) LoggerFunc {
 	logger := GetLogger()
 	return func(msg string, a ...map[string]string) {
 		var logAttrs []slog.Attr
-		reqID := middleware.GetReqID(ctx)
-		if reqID != "" {
-			logAttrs = []slog.Attr{
-				slog.String("requestID", reqID),
+
+		// Get request ID from Echo context if available
+		if echoCtx, ok := ctx.(echo.Context); ok {
+			reqID := echoCtx.Response().Header().Get(echo.HeaderXRequestID)
+			if reqID != "" {
+				logAttrs = []slog.Attr{
+					slog.String("requestID", reqID),
+				}
 			}
 		}
+
 		for _, m := range a {
 			for k, v := range m {
 				newAttr := slog.Any(k, v)

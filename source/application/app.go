@@ -2,23 +2,22 @@ package application
 
 import (
 	"context"
+	"database/sql"
 	"fmt"
 	"log"
 	"net/http"
 	"time"
 
-	"github.com/go-chi/chi/v5"
-	"github.com/go-chi/chi/v5/middleware"
-	"github.com/go-chi/httprate"
-	"github.com/jmoiron/sqlx"
+	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v4/middleware"
 	_ "github.com/lib/pq"
 
 	"vcbiotech/microservice/telemetry"
 )
 
 type App struct {
-	router *chi.Mux
-	db     *sqlx.DB
+	router *echo.Echo
+	db     *sql.DB
 	config Config
 }
 
@@ -28,7 +27,7 @@ func New(config Config) *App {
 	}
 
 	// Connect to database
-	db, err := sqlx.Connect("postgres", config.LoadDbUri())
+	db, err := sql.Open("postgres", config.LoadDbUri())
 	if err != nil {
 		errMsg := map[string]string{"Error": err.Error()}
 		log.Println("Could not connect to database.", errMsg)
@@ -93,24 +92,31 @@ func (a *App) Start(ctx context.Context) error {
 }
 
 func (a *App) loadMiddleware() {
-	router := chi.NewRouter()
-	router.Use(middleware.RequestID)
-	router.Use(middleware.RealIP)
-	router.Use(telemetry.Tracing)
-	router.Use(middleware.Recoverer)
-	router.Use(middleware.Heartbeat("/health"))
-	router.Use(httprate.LimitByIP(500, 1*time.Minute))
+	router := echo.New()
+	router.Use(middleware.RequestID())
+	router.Use(telemetry.Tracing())
+	router.Use(middleware.Recover())
+	router.GET("/api/health", func(c echo.Context) error {
+		return c.JSON(http.StatusOK, map[string]string{
+			"status": "ok",
+			"time":   time.Now().Format(time.RFC3339),
+		})
+	})
+	router.Use(middleware.RateLimiter(middleware.NewRateLimiterMemoryStore(1000)))
 	a.router = router
 }
 
 func (a *App) loadRoutes() {
-	a.router.Get("/", func(w http.ResponseWriter, _ *http.Request) {
-		w.WriteHeader(http.StatusOK)
-		w.Write([]byte("File Manager Service."))
+	a.router.GET("/", func(c echo.Context) error {
+		return c.String(http.StatusOK, "File Manager Service.")
 	})
 
 	// App V1
-	a.router.Route("/v1/user", a.loadUserRoutes)
+	userGroup := a.router.Group("/v1/users")
+	a.loadUserRoutes(userGroup)
+
+	fileGroup := a.router.Group("/v1/files")
+	a.loadFileRoutes(fileGroup)
 }
 
 // func (a *App) loadOrderRoutes(router chi.Router) {

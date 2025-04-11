@@ -2,19 +2,13 @@ package order
 
 import (
 	"context"
-	"fmt"
-
-	"github.com/jmoiron/sqlx"
+	"database/sql"
 
 	"vcbiotech/microservice/telemetry"
 )
 
 type SQLRepo struct {
-	Client *sqlx.DB
-}
-
-func orderId(id uint64) string {
-	return fmt.Sprintf("order:%d", id)
+	Client *sql.DB
 }
 
 func (r *SQLRepo) Insert(ctx context.Context, order Order) error {
