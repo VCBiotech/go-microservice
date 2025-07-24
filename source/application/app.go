@@ -12,29 +12,40 @@ import (
 	"github.com/labstack/echo/v4/middleware"
 	_ "github.com/lib/pq"
 
-	"vcbiotech/microservice/telemetry"
+	"file-manager/auth"
+	"file-manager/metadata"
+	"file-manager/storage"
+	"file-manager/telemetry"
 )
 
 type App struct {
-	router *echo.Echo
-	db     *sql.DB
-	config Config
+	router         *echo.Echo
+	db             *sql.DB
+	config         *AppConfig
+	storageManager *storage.StorageManager
+	metadataStore  metadata.MetadataStore
 }
 
-func New(config Config) *App {
+// GetRouter returns the router for testing purposes
+func (a *App) GetRouter() *echo.Echo {
+	return a.router
+}
+
+func New(config *AppConfig) *App {
 	app := &App{
 		config: config,
 	}
 
-	// Connect to database
-	db, err := sql.Open("postgres", config.LoadDbUri())
+	// Initialize storage manager
+	storageManager, err := storage.NewStorageManager(config)
 	if err != nil {
-		errMsg := map[string]string{"Error": err.Error()}
-		log.Println("Could not connect to database.", errMsg)
-	} else {
-		// Add connection to current app
-		app.db = db
+		log.Fatalf("Failed to initialize storage manager: %v", err)
 	}
+	app.storageManager = storageManager
+
+	// Initialize Metadata Store (using in-memory for demo)
+	metadataStore := metadata.NewInMemoryMetadataStore()
+	app.metadataStore = metadataStore
 
 	app.loadMiddleware()
 	app.loadRoutes()
@@ -94,15 +105,15 @@ func (a *App) Start(ctx context.Context) error {
 func (a *App) loadMiddleware() {
 	router := echo.New()
 	router.Use(middleware.RequestID())
+	router.Use(middleware.Logger())
 	router.Use(telemetry.Tracing())
 	router.Use(middleware.Recover())
-	router.GET("/api/health", func(c echo.Context) error {
-		return c.JSON(http.StatusOK, map[string]string{
-			"status": "ok",
-			"time":   time.Now().Format(time.RFC3339),
-		})
-	})
 	router.Use(middleware.RateLimiter(middleware.NewRateLimiterMemoryStore(1000)))
+	router.GET("/health", func(c echo.Context) error {
+		return c.String(http.StatusOK, "Ok")
+	})
+	router.Use(auth.ServerAuthMiddleware())
+
 	a.router = router
 }
 
@@ -112,23 +123,6 @@ func (a *App) loadRoutes() {
 	})
 
 	// App V1
-	userGroup := a.router.Group("/v1/users")
-	a.loadUserRoutes(userGroup)
-
 	fileGroup := a.router.Group("/v1/files")
 	a.loadFileRoutes(fileGroup)
 }
-
-// func (a *App) loadOrderRoutes(router chi.Router) {
-// 	orderHandler := &order.OrderRepo{
-// 		Repo: &order.RedisRepo{
-// 			Client: a.rdb,
-// 		},
-// 	}
-//
-// 	router.Post("/", orderHandler.Create)
-// 	router.Get("/", orderHandler.List)
-// 	router.Get("/{id}", orderHandler.GetByID)
-// 	router.Put("/{id}", orderHandler.UpdateById)
-// 	router.Delete("/{id}", orderHandler.DeleteById)
-// }

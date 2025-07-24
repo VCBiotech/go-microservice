@@ -1,0 +1,57 @@
+{
+  "CompanyName": "Acme Corp",
+  "CompanyAddress": "123 Business Street, Suite 100\nNew York, NY 10001",
+  "CompanyPhone": "+1 (555) 123-4567",
+  "CompanyEmail": "billing@acmecorp.com",
+
+  "InvoiceNumber": "INV-2024-001",
+  "Date": "2024-01-15",
+  "DueDate": "2024-02-15",
+  "PaymentTerms": "Net 30",
+  "PurchaseOrder": "PO-2024-ABC123",
+
+  "CustomerName": "John Doe Enterprises",
+  "CustomerAddress": "456 Client Avenue\nLos Angeles, CA 90210",
+  "CustomerPhone": "+1 (555) 987-6543",
+  "CustomerEmail": "john.doe@cliententerprise.com",
+
+  "Items": [
+    {
+      "Description": "Web Application Development",
+      "Details": "Custom React.js application with user authentication",
+      "Quantity": "1",
+      "Rate": "5000.00",
+      "Amount": "5000.00"
+    },
+    {
+      "Description": "Database Design & Implementation",
+      "Details": "PostgreSQL database with optimized queries",
+      "Quantity": "1",
+      "Rate": "1500.00",
+      "Amount": "1500.00"
+    },
+    {
+      "Description": "API Development",
+      "Details": "RESTful API with comprehensive documentation",
+      "Quantity": "1",
+      "Rate": "2000.00",
+      "Amount": "2000.00"
+    },
+    {
+      "Description": "Quality Assurance Testing",
+      "Details": "Comprehensive testing including unit and integration tests",
+      "Quantity": "40",
+      "Rate": "75.00",
+      "Amount": "3000.00"
+    }
+  ],
+
+  "Subtotal": "11500.00",
+  "TaxRate": "8.25",
+  "Tax": "948.75",
+  "Discount": "0.00",
+  "Total": "12448.75",
+
+  "PaymentInstructions": "Payment due within 30 days. Please remit payment to:\nAccount: 1234567890\nRouting: 987654321\nAcme Corp Business Account",
+  "Notes": "Thank you for choosing Acme Corp for your development needs. For questions about this invoice, please contact our billing department."
+}

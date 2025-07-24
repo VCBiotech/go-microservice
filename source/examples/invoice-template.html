@@ -1,0 +1,284 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Invoice #{{.InvoiceNumber}}</title>
+    <style>
+      body {
+        font-family: "Arial", sans-serif;
+        line-height: 1.6;
+        color: #333;
+        max-width: 800px;
+        margin: 0 auto;
+        padding: 20px;
+        background-color: #f9f9f9;
+      }
+
+      .invoice-container {
+        background-color: white;
+        padding: 40px;
+        box-shadow: 0 0 20px rgba(0, 0, 0, 0.1);
+        border-radius: 8px;
+      }
+
+      .header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        border-bottom: 3px solid #2c5aa0;
+        padding-bottom: 20px;
+        margin-bottom: 30px;
+      }
+
+      .company-info h1 {
+        color: #2c5aa0;
+        margin: 0;
+        font-size: 2.5em;
+      }
+
+      .company-info p {
+        margin: 5px 0;
+        color: #666;
+      }
+
+      .invoice-info {
+        text-align: right;
+      }
+
+      .invoice-info h2 {
+        color: #2c5aa0;
+        margin: 0;
+        font-size: 1.8em;
+      }
+
+      .invoice-details {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 40px;
+        margin-bottom: 40px;
+      }
+
+      .bill-to,
+      .invoice-meta {
+        background-color: #f8f9fa;
+        padding: 20px;
+        border-radius: 6px;
+      }
+
+      .bill-to h3,
+      .invoice-meta h3 {
+        color: #2c5aa0;
+        margin-top: 0;
+        border-bottom: 2px solid #e9ecef;
+        padding-bottom: 10px;
+      }
+
+      .items-table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-bottom: 30px;
+        background-color: white;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+      }
+
+      .items-table th {
+        background-color: #2c5aa0;
+        color: white;
+        padding: 15px;
+        text-align: left;
+        font-weight: 600;
+      }
+
+      .items-table td {
+        padding: 12px 15px;
+        border-bottom: 1px solid #e9ecef;
+      }
+
+      .items-table tr:nth-child(even) {
+        background-color: #f8f9fa;
+      }
+
+      .items-table tr:hover {
+        background-color: #e3f2fd;
+      }
+
+      .text-right {
+        text-align: right;
+      }
+
+      .total-section {
+        display: flex;
+        justify-content: flex-end;
+        margin-top: 30px;
+      }
+
+      .total-box {
+        background-color: #2c5aa0;
+        color: white;
+        padding: 20px 30px;
+        border-radius: 8px;
+        text-align: center;
+        min-width: 200px;
+      }
+
+      .total-box h3 {
+        margin: 0 0 10px 0;
+        font-size: 1.2em;
+      }
+
+      .total-amount {
+        font-size: 2.2em;
+        font-weight: bold;
+        margin: 0;
+      }
+
+      .footer {
+        margin-top: 50px;
+        padding-top: 20px;
+        border-top: 2px solid #e9ecef;
+        text-align: center;
+        color: #666;
+        font-size: 0.9em;
+      }
+
+      .payment-terms {
+        background-color: #fff3cd;
+        border: 1px solid #ffeaa7;
+        border-radius: 6px;
+        padding: 15px;
+        margin-top: 30px;
+      }
+
+      .payment-terms h4 {
+        color: #856404;
+        margin-top: 0;
+      }
+
+      @media print {
+        body {
+          background-color: white;
+          padding: 0;
+        }
+
+        .invoice-container {
+          box-shadow: none;
+          padding: 20px;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="invoice-container">
+      <div class="header">
+        <div class="company-info">
+          <h1>{{.CompanyName}}</h1>
+          <p>{{.CompanyAddress}}</p>
+          <p>{{.CompanyPhone}}</p>
+          <p>{{.CompanyEmail}}</p>
+        </div>
+        <div class="invoice-info">
+          <h2>INVOICE</h2>
+          <p><strong>#{{.InvoiceNumber}}</strong></p>
+        </div>
+      </div>
+
+      <div class="invoice-details">
+        <div class="bill-to">
+          <h3>Bill To:</h3>
+          <p><strong>{{.CustomerName}}</strong></p>
+          <p>{{.CustomerAddress}}</p>
+          {{if .CustomerPhone}}
+          <p>Phone: {{.CustomerPhone}}</p>
+          {{end}} {{if .CustomerEmail}}
+          <p>Email: {{.CustomerEmail}}</p>
+          {{end}}
+        </div>
+
+        <div class="invoice-meta">
+          <h3>Invoice Details:</h3>
+          <p><strong>Date:</strong> {{.Date}}</p>
+          <p><strong>Due Date:</strong> {{.DueDate}}</p>
+          {{if .PurchaseOrder}}
+          <p><strong>PO Number:</strong> {{.PurchaseOrder}}</p>
+          {{end}}
+          <p><strong>Terms:</strong> {{.PaymentTerms}}</p>
+        </div>
+      </div>
+
+      <table class="items-table">
+        <thead>
+          <tr>
+            <th>Description</th>
+            <th class="text-right">Quantity</th>
+            <th class="text-right">Rate</th>
+            <th class="text-right">Amount</th>
+          </tr>
+        </thead>
+        <tbody>
+          {{range .Items}}
+          <tr>
+            <td>
+              <strong>{{.Description}}</strong>
+              {{if .Details}}<br /><small style="color: #666"
+                >{{.Details}}</small
+              >{{end}}
+            </td>
+            <td class="text-right">{{.Quantity}}</td>
+            <td class="text-right">${{.Rate}}</td>
+            <td class="text-right"><strong>${{.Amount}}</strong></td>
+          </tr>
+          {{end}}
+        </tbody>
+      </table>
+
+      <div class="total-section">
+        <div>
+          <table style="width: 300px; border-collapse: collapse">
+            {{if .Subtotal}}
+            <tr>
+              <td style="padding: 8px; text-align: right">
+                <strong>Subtotal:</strong>
+              </td>
+              <td style="padding: 8px; text-align: right">${{.Subtotal}}</td>
+            </tr>
+            {{end}} {{if .Tax}}
+            <tr>
+              <td style="padding: 8px; text-align: right">
+                <strong>Tax {{.TaxRate}}%:</strong>
+              </td>
+              <td style="padding: 8px; text-align: right">${{.Tax}}</td>
+            </tr>
+            {{end}} {{if .Discount}}
+            <tr>
+              <td style="padding: 8px; text-align: right">
+                <strong>Discount:</strong>
+              </td>
+              <td style="padding: 8px; text-align: right">-${{.Discount}}</td>
+            </tr>
+            {{end}}
+          </table>
+
+          <div class="total-box">
+            <h3>Total Amount</h3>
+            <p class="total-amount">${{.Total}}</p>
+          </div>
+        </div>
+      </div>
+
+      {{if .PaymentTerms}}
+      <div class="payment-terms">
+        <h4>Payment Terms & Instructions</h4>
+        <p>{{.PaymentInstructions}}</p>
+      </div>
+      {{end}}
+
+      <div class="footer">
+        <p>Thank you for your business!</p>
+        {{if .Notes}}
+        <p><em>{{.Notes}}</em></p>
+        {{end}}
+      </div>
+    </div>
+  </body>
+</html>

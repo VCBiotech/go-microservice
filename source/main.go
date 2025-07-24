@@ -5,8 +5,8 @@ import (
 	"os"
 	"os/signal"
 
-	"vcbiotech/microservice/application"
-	"vcbiotech/microservice/telemetry"
+	"file-manager/application"
+	"file-manager/telemetry"
 )
 
 func main() {
@@ -19,6 +19,6 @@ func main() {
 
 	err := app.Start(ctx)
 	if err != nil {
-		logger.Error("Failed to start app: %s", err)
+		logger.Error("Failed to start app", err.Error())
 	}
 }
