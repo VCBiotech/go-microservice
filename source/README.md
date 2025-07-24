@@ -5,15 +5,17 @@ A high-performance Go microservice for file management with multi-cloud storage 
 ## 🚀 Features
 
 - **Multi-Cloud Storage**: Support for AWS S3 and Google Cloud Storage with configurable default provider
-- **Template Rendering**: Dynamic HTML template rendering with JSON data injection
+- **Template Rendering**: Dynamic HTML template rendering with JSON data injection using Go templates
 - **PDF Generation**: Convert rendered templates to PDF using Gotenberg service
-- **Server Authentication**: PIN-based authentication system for server-to-server communication
+- **Server Authentication**: PIN-based authentication system with bcrypt hashing for server-to-server communication
 - **Role-Based Access Control**: Fine-grained permissions with admin, calculator, and analytics roles
-- **Metadata Management**: In-memory metadata store for file information
-- **Telemetry & Logging**: Structured logging with OpenTelemetry support
-- **Rate Limiting**: Built-in rate limiting for API protection
+- **Metadata Management**: In-memory metadata store for file information (PostgreSQL integration planned)
+- **Telemetry & Logging**: Structured logging with colored output and OpenTelemetry support
+- **Rate Limiting**: Built-in rate limiting for API protection (1000 requests per time window)
 - **Health Checks**: Ready-to-use health check endpoints
-- **Docker Support**: Containerized deployment with Docker
+- **Docker Support**: Containerized deployment with multi-stage Docker builds
+- **Hot Reload Development**: Air configuration for automatic reloading during development
+- **ECR Integration**: AWS ECR deployment pipeline with automated builds
 
 ## 🏗️ Architecture
 
@@ -40,6 +42,7 @@ A high-performance Go microservice for file management with multi-cloud storage 
 - **Gotenberg**: PDF conversion service (runs on port 3001)
 - **AWS Account**: For S3 storage (optional)
 - **Google Cloud Account**: For GCS storage (optional)
+- **Air**: For hot reload development (optional, install with `go install github.com/air-verse/air@latest`)
 
 ## 🔧 Installation & Setup
 
@@ -58,25 +61,53 @@ go mod download
 
 ### 3. Configuration
 
-Create your environment configuration. The service supports configuration via environment variables or a JSON secrets string.
+Create your environment configuration by copying the example file and updating it:
+
+```bash
+cp config.env.example .env
+```
+
+The service supports configuration via environment variables or a JSON secrets string.
 
 #### Environment Variables
 
+Set the following environment variables in your `.env` file or export them:
+
 ```bash
-export AWS_REGION="us-east-1"
-export AWS_ACCESS_KEY_ID="your-access-key"
-export AWS_SECRET_ACCESS_KEY="your-secret-key"
-export GCP_PROJECT_ID="your-project-id"
-export GCP_CREDENTIALS_FILE="path/to/credentials.json"
-export DEFAULT_CLOUD="aws"  # or "gcp"
-export BUCKET_NAME="your-bucket-name"
-export REPLICATE_TO_ALL_CLOUDS="false"
+# Server Configuration
+SERVER_PORT=3000
+
+# AWS S3 Configuration
+AWS_REGION=us-east-1
+AWS_ACCESS_KEY_ID=your-aws-access-key-here
+AWS_SECRET_ACCESS_KEY=your-aws-secret-key-here
+
+# Google Cloud Storage Configuration
+GCP_PROJECT_ID=your-gcp-project-id
+GCP_CREDENTIALS_FILE=/path/to/your/gcp-credentials.json
+
+# Storage Configuration
+DEFAULT_CLOUD=aws
+BUCKET_NAME=your-s3-bucket-name
+REPLICATE_TO_ALL_CLOUDS=false
+
+# Database Configuration (Optional - for future PostgreSQL integration)
+DATABASE_URL=postgres://username:password@localhost:5432/database_name
+
+# Gotenberg PDF Service (External dependency)
+GOTENBERG_URL=http://localhost:3001
+
+# Development Settings
+LOG_LEVEL=info
+DEBUG=false
 ```
 
 #### JSON Secrets (Alternative)
 
+Use this method for containerized deployments:
+
 ```bash
-export SECRETS='{"AWS_ACCESS_KEY_ID":"your-key","AWS_SECRET_ACCESS_KEY":"your-secret","BUCKET_NAME":"your-bucket"}'
+export SECRETS='{"AWS_ACCESS_KEY_ID":"your-key","AWS_SECRET_ACCESS_KEY":"your-secret","BUCKET_NAME":"your-bucket","GCP_PROJECT_ID":"your-project","DEFAULT_CLOUD":"aws"}'
 ```
 
 ### 4. Start Gotenberg Service (Required for PDF Generation)
@@ -88,11 +119,11 @@ docker run --rm -p 3001:3000 gotenberg/gotenberg:7
 ### 5. Run the Service
 
 ```bash
-# Development mode with hot reload
+# Development mode with hot reload using Air
 make dev
 
 # Or build and run manually
-go build -o bin/file-manager
+go build -o bin/file-manager .
 ./bin/file-manager
 ```
 
@@ -113,7 +144,7 @@ make run
 ### AWS ECR Deployment
 
 ```bash
-# Build and push to ECR
+# Login to ECR, build, tag and push
 make build-push
 ```
 
@@ -121,9 +152,9 @@ make build-push
 
 ### Authentication
 
-All API endpoints (except health check) require server authentication:
+All API endpoints (except `/health`) require server authentication:
 
-**Headers:**
+**Required Headers:**
 
 - `X-Server-ID`: Server identifier (`calculator-server`, `analytics-server`, `admin-server`)
 - `X-PIN`: Server PIN (default: `123`, `456`, `789` respectively)
@@ -201,7 +232,6 @@ X-PIN: 123
       <h2>Bill To:</h2>
       <p>{{.CustomerName}}</p>
       <p>{{.CustomerAddress}}</p>
-
       <h2>Items:</h2>
       <table>
         {{range .Items}}
@@ -211,7 +241,6 @@ X-PIN: 123
         </tr>
         {{end}}
       </table>
-
       <div class="amount">Total: ${{.Total}}</div>
     </div>
   </body>
@@ -250,11 +279,29 @@ X-PIN: 123
 curl -X POST http://localhost:3000/v1/files/render-template \
   -H "X-Server-ID: calculator-server" \
   -H "X-PIN: 123" \
-  -F "template=@invoice.html" \
+  -F "template=@examples/invoice-template.html" \
   -F 'jsonData={"InvoiceNumber":"INV-001","CustomerName":"John Doe","Total":"2000.00"}'
 ```
 
-### 2. Go Client Example
+### 2. Test Script
+
+Use the provided test script to validate your setup:
+
+```bash
+# Run from project root
+./examples/test-service.sh
+```
+
+This script will:
+
+- Check if the service is running
+- Start Gotenberg if needed
+- Test the health endpoint
+- Test template rendering with example files
+- Test authentication validation
+- Clean up resources
+
+### 3. Go Client Example
 
 ```go
 package main
@@ -270,11 +317,9 @@ import (
 func uploadTemplate() error {
     url := "http://localhost:3000/v1/files/render-template"
 
-    // Create multipart form
     var b bytes.Buffer
     writer := multipart.NewWriter(&b)
 
-    // Add template file
     file, err := os.Open("template.html")
     if err != nil {
         return err
@@ -287,11 +332,9 @@ func uploadTemplate() error {
     }
     io.Copy(fw, file)
 
-    // Add JSON data
     writer.WriteField("jsonData", `{"name":"John","amount":"100"}`)
     writer.Close()
 
-    // Create request
     req, err := http.NewRequest("POST", url, &b)
     if err != nil {
         return err
@@ -301,7 +344,6 @@ func uploadTemplate() error {
     req.Header.Set("X-Server-ID", "calculator-server")
     req.Header.Set("X-PIN", "123")
 
-    // Send request
     client := &http.Client{}
     resp, err := client.Do(req)
     if err != nil {
@@ -313,7 +355,7 @@ func uploadTemplate() error {
 }
 ```
 
-### 3. Python Client Example
+### 4. Python Client Example
 
 ```python
 import requests
@@ -346,7 +388,10 @@ print(result)
 ### Available Make Commands
 
 ```bash
-# Start development server with hot reload
+# Show all available commands
+make help
+
+# Start development server with hot reload (uses Air)
 make dev
 
 # Build Docker image
@@ -355,89 +400,194 @@ make build
 # Run tests
 make test
 
-# Build and push to ECR
-make build-push
+# ECR operations
+make ecr-login    # Login to AWS ECR
+make tag          # Tag Docker image for ECR
+make push         # Push image to ECR
+make build-push   # Complete ECR deployment pipeline
 
-# Run locally
+# Run application locally in Docker
 make run
 
-# Show all available commands
-make help
+# Database operations (future PostgreSQL integration)
+make init-db      # Initialize database
+make migrate      # Apply migrations
+make new-migration args=<name>  # Create new migration
+
+# Code quality (placeholders for future implementation)
+make lint         # Lint code
+make format       # Format code
+make type-check   # Type checking
+
+# Cleanup
+make clean        # Clean build artifacts
 ```
+
+### Hot Reload Development
+
+The project uses [Air](https://github.com/air-verse/air) for hot reload during development:
+
+1. Install Air: `go install github.com/air-verse/air@latest`
+2. Run `make dev` to start with hot reload
+3. Air will automatically rebuild and restart the service when files change
+
+Configuration is in `.air.toml`:
+
+- Watches `.go`, `.tpl`, `.tmpl`, `.html` files
+- Excludes test files and temporary directories
+- Builds to `./tmp/main`
 
 ### Project Structure
 
 ```
 source/
-├── application/          # Application layer
-│   ├── app.go           # Main app initialization
-│   ├── config.go        # Config wrapper
-│   └── routes.go        # Route definitions
-├── auth/                # Authentication
-│   └── server_auth.go   # Server auth middleware
-├── config/              # Configuration
-│   └── config.go        # Config management
-├── domain/              # Domain layer
-│   └── file/           # File domain
-│       ├── hanlder.go  # File handlers
+├── .air.toml             # Air hot reload configuration
+├── .dockerignore         # Docker ignore patterns
+├── .gitignore           # Git ignore patterns
+├── config.env.example   # Environment configuration template
+├── Dockerfile           # Multi-stage Docker build
+├── go.mod              # Go module dependencies
+├── go.sum              # Go module checksums
+├── main.go             # Application entry point
+├── Makefile            # Build and deployment commands
+├── README.md           # This file
+├── application/         # Application layer
+│   ├── app.go          # Main app initialization & server setup
+│   ├── config.go       # Config wrapper for backward compatibility
+│   └── routes.go       # Route definitions and handlers
+├── auth/               # Authentication & authorization
+│   └── server_auth.go  # Server auth middleware with bcrypt
+├── config/             # Configuration management
+│   └── config.go       # Environment and secrets configuration
+├── domain/             # Domain/business logic layer
+│   └── file/          # File domain
+│       ├── hanlder.go  # File handlers (template rendering)
 │       ├── model.go    # File models
-│       └── repo.go     # File repository
-├── storage/             # Storage layer
-│   ├── aws_s3.go       # AWS S3 adapter
-│   ├── gcs.go          # Google Cloud Storage adapter
-│   ├── manager.go      # Storage manager
-│   └── storage.go      # Storage interface
-├── telemetry/           # Observability
-│   └── logger.go       # Logging configuration
-└── utils/               # Utilities
-    ├── aws_helper.go    # AWS utilities
-    ├── clerk_helper.go  # Clerk utilities
-    └── parse_template.go # Template parsing
+│       └── repo.go     # File repository logic
+├── examples/           # Example files and test scripts
+│   ├── invoice-data.json      # Sample JSON data
+│   ├── invoice-template.html  # Sample HTML template
+│   └── test-service.sh       # Comprehensive test script
+├── metadata/           # Metadata management
+│   └── metadata.go     # In-memory metadata store interface
+├── storage/            # Storage layer
+│   ├── aws_s3.go      # AWS S3 adapter implementation
+│   ├── gcs.go         # Google Cloud Storage adapter
+│   ├── manager.go     # Multi-cloud storage manager
+│   └── storage.go     # Storage interface definition
+├── telemetry/          # Observability
+│   └── logger.go      # Colored structured logging
+├── tmp/               # Air build directory (gitignored)
+└── utils/             # Utility functions
+    ├── aws_helper.go   # AWS S3 utilities
+    ├── clerk_helper.go # Clerk auth utilities (commented)
+    └── parse_template.go # Template parsing and PDF generation
 ```
 
 ## 🔐 Security
 
 ### Server Authentication
 
-The service uses a PIN-based authentication system:
+The service uses a PIN-based authentication system with bcrypt hashing:
 
 - **calculator-server**: PIN `123` (calculator role)
 - **analytics-server**: PIN `456` (analytics role)
 - **admin-server**: PIN `789` (admin role)
 
-> ⚠️ **Production Note**: Change default PINs and use secure password hashing
+> ⚠️ **Production Note**: Change default PINs in production and store them securely
+
+### Role-Based Access Control (RBAC)
+
+- **Admin role**: Full access to all operations
+- **Calculator role**: Access to template rendering operations
+- **Analytics role**: Access to analytics operations
 
 ### Rate Limiting
 
-Built-in rate limiting allows 1000 requests per time window per client.
+Built-in rate limiting allows 1000 requests per time window per client using Echo's memory store.
+
+### Authentication Headers
+
+All endpoints (except `/health`) require:
+
+- `X-Server-ID`: Must match one of the configured server IDs
+- `X-PIN`: Must match the corresponding PIN for the server ID
 
 ## 🌐 Multi-Cloud Storage
 
 ### Supported Providers
 
-- **AWS S3**: Primary cloud storage
-- **Google Cloud Storage**: Alternative/backup storage
+- **AWS S3**: Primary cloud storage with full SDK integration
+- **Google Cloud Storage**: Alternative/backup storage with authentication
 
 ### Configuration
 
-Set `DEFAULT_CLOUD` to `aws` or `gcp` to choose your primary storage provider.
+- Set `DEFAULT_CLOUD` to `aws` or `gcp` to choose your primary storage provider
+- Set `REPLICATE_TO_ALL_CLOUDS=true` to replicate files to all configured clouds
+- Each cloud provider requires its own authentication configuration
+
+### Storage Manager
+
+The `StorageManager` handles multiple cloud adapters:
+
+- Automatically initializes available adapters based on configuration
+- Provides unified interface for all storage operations
+- Supports fallback and replication strategies
 
 ## 📊 Monitoring & Logging
 
-The service includes:
+### Structured Logging
 
-- **Structured Logging**: JSON-formatted logs with context
-- **Request Tracing**: Unique request IDs for tracking
-- **Health Checks**: `/health` endpoint for monitoring
-- **OpenTelemetry**: Ready for distributed tracing
+- **Colored Console Output**: Easy-to-read colored logs for development
+- **JSON Logging**: Structured logs for production environments
+- **Request Tracing**: Unique request IDs with start/end logging
+- **Contextual Logging**: Include request metadata in all logs
+
+### Health Monitoring
+
+- **Health Check Endpoint**: `/health` returns service status
+- **Request/Response Logging**: Automatic logging of all HTTP requests
+- **Error Tracking**: Detailed error logging with context
+
+### Telemetry Integration
+
+- Ready for OpenTelemetry integration
+- Request timing and performance metrics
+- Custom attributes for request tracking
+
+## 🧪 Testing
+
+### Test Script
+
+Run the comprehensive test script:
+
+```bash
+./examples/test-service.sh
+```
+
+The script tests:
+
+- Service health and availability
+- Gotenberg PDF service integration
+- Template rendering with real files
+- Authentication validation
+- Error handling
+
+### Unit Tests
+
+```bash
+make test
+```
 
 ## 🤝 Contributing
 
 1. Fork the repository
 2. Create a feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit your changes (`git commit -m 'Add amazing feature'`)
-4. Push to the branch (`git push origin feature/amazing-feature`)
-5. Open a Pull Request
+3. Make your changes and test thoroughly
+4. Run the test script: `./examples/test-service.sh`
+5. Commit your changes (`git commit -m 'Add amazing feature'`)
+6. Push to the branch (`git push origin feature/amazing-feature`)
+7. Open a Pull Request
 
 ## 📝 License
 
@@ -450,9 +600,18 @@ For support and questions:
 1. Check the [Issues](../../issues) page
 2. Create a new issue with detailed information
 3. Include logs and error messages when reporting bugs
+4. Use the test script to validate your setup
 
 ## 🗺️ Roadmap
 
+- [x] Multi-cloud storage support (AWS S3, GCS)
+- [x] Template rendering with Go templates
+- [x] PDF generation via Gotenberg
+- [x] Server authentication with bcrypt
+- [x] Role-based access control
+- [x] Docker containerization
+- [x] Hot reload development setup
+- [x] Comprehensive test suite
 - [ ] PostgreSQL integration for persistent metadata
 - [ ] File versioning system
 - [ ] Webhook notifications
@@ -460,3 +619,7 @@ For support and questions:
 - [ ] Metrics and monitoring dashboard
 - [ ] File compression and optimization
 - [ ] Batch operations support
+- [ ] API rate limiting per user/server
+- [ ] File encryption at rest
+- [ ] Audit logging
+- [ ] GraphQL API support
