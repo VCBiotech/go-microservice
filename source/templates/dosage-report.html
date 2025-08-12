@@ -1,0 +1,544 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>{{.HormoneName}} Dosage Report - {{.PatientName}}</title>
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <style>
+      @import url("https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap");
+      @import url("https://fonts.googleapis.com/css2?family=Duru+Sans:wght@400&display=swap");
+      body {
+        font-family: "Inter", sans-serif;
+      }
+      .font-duru {
+        font-family: "Duru Sans", sans-serif;
+      }
+      .page-break-after {
+        page-break-after: always;
+        break-after: page;
+      }
+      .page-break-before {
+        page-break-before: always;
+        break-before: page;
+      }
+      .keep-together {
+        page-break-inside: avoid;
+        break-inside: avoid;
+      }
+    </style>
+  </head>
+  <body class="bg-white p-8 text-gray-900">
+    <div class="mx-auto max-w-4xl">
+      <!-- Header -->
+      <div class="mb-8 border-b border-gray-300 pb-4">
+        <div class="mb-3 flex items-center">
+          <div>
+            <h1 class="font-duru text-xl font-bold text-gray-900">
+              Equilibria Diagnostics
+            </h1>
+            <p class="text-sm text-gray-600">
+              Personalized Hormone Replacement Therapy
+            </p>
+          </div>
+          <div class="ml-auto">
+            <img
+              src="https://app.equilibriahrt.com/logo.png"
+              alt="Equilibria HRT Logo"
+              class="h-24 w-24"
+            />
+          </div>
+        </div>
+
+        <div class="mt-3 text-sm text-gray-500">
+          <p>
+            Dosage Report Generated: {{.ReportDate}} | Provider: {{.ProviderName}}
+          </p>
+        </div>
+      </div>
+
+      <!-- Introduction -->
+      <div class="mb-8">
+        <h3 class="mb-2 text-lg font-semibold text-gray-900">
+          Hormone Replacement Therapy Report
+        </h3>
+        <p class="text-sm leading-relaxed text-gray-700">
+          This comprehensive medical report provides a detailed assessment of
+          your hormone replacement therapy progress, current status, and
+          recommendations for ongoing treatment optimization.
+        </p>
+      </div>
+
+      <!-- Patient Information Section -->
+      <div class="mb-8">
+        <h3
+          class="mb-3 border-b border-gray-300 pb-2 text-lg font-bold text-gray-900"
+        >
+          Patient Information
+        </h3>
+
+        <table class="w-full border-collapse">
+          <tbody>
+            <tr>
+              <td class="w-1/4 py-2 pr-4 text-sm font-semibold text-gray-700">
+                Name:
+              </td>
+              <td class="w-1/4 py-2 pr-4 text-sm text-gray-900">
+                {{.PatientName}}
+              </td>
+              <td class="w-1/4 py-2 pr-4 text-sm font-semibold text-gray-700">
+                Age:
+              </td>
+              <td class="w-1/4 py-2 text-sm text-gray-900">
+                {{if and .Age (gt .Age 0)}}{{.Age}} years{{else}}Not specified{{end}}
+              </td>
+            </tr>
+            <tr>
+              <td class="py-2 pr-4 text-sm font-semibold text-gray-700">
+                Sex:
+              </td>
+              <td class="py-2 pr-4 text-sm text-gray-900 capitalize">
+                {{if .Sex}}{{.Sex}}{{else}}Not specified{{end}}
+              </td>
+              <td class="py-2 pr-4 text-sm font-semibold text-gray-700">
+                Height:
+              </td>
+              <td class="py-2 text-sm text-gray-900">
+                {{if and .Height (gt .Height 0)}}{{div .Height 12}}'{{mod .Height 12}}"{{else}}Not specified{{end}}
+              </td>
+            </tr>
+            <tr>
+              <td class="py-2 pr-4 text-sm font-semibold text-gray-700">
+                Weight:
+              </td>
+              <td class="py-2 pr-4 text-sm text-gray-900">
+                {{if and .Weight (gt .Weight 0)}}{{.Weight}} lbs{{else}}Not specified{{end}}
+              </td>
+              <td class="py-2 pr-4 text-sm font-semibold text-gray-700">
+                Ethnicity:
+              </td>
+              <td class="py-2 text-sm text-gray-900 capitalize">
+                {{if .Ethnicity}}{{.Ethnicity}}{{else}}Not specified{{end}}
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Current Symptoms and Concerns -->
+      {{if .Symptoms}}
+      <div class="mb-8">
+        <h3
+          class="mb-3 border-b border-gray-300 pb-2 text-lg font-bold text-gray-900"
+        >
+          Current Symptoms and Concerns
+        </h3>
+        <div class="space-y-2 text-sm text-gray-700">
+          {{if .Symptoms.Physical}}
+          <div>
+            <span class="font-medium">Physical Symptoms:</span> {{.Symptoms.Physical}}
+          </div>
+          {{end}}
+          {{if .Symptoms.Mood}}
+          <div>
+            <span class="font-medium">Mood/Mental Health:</span> {{.Symptoms.Mood}}
+          </div>
+          {{end}}
+          {{if .Symptoms.Energy}}
+          <div>
+            <span class="font-medium">Energy Levels:</span> {{.Symptoms.Energy}}
+          </div>
+          {{end}}
+          {{if .Symptoms.SideEffects}}
+          <div>
+            <span class="font-medium">Side Effects:</span> {{.Symptoms.SideEffects}}
+          </div>
+          {{end}}
+        </div>
+      </div>
+      {{end}}
+
+      <!-- Objective Measurements -->
+      {{if .LabResults}}
+      <div class="page-break-after mb-8">
+        <h3
+          class="mb-3 border-b border-gray-300 pb-2 text-lg font-bold text-gray-900"
+        >
+          Recent Laboratory Results
+        </h3>
+
+        <h4 class="text-md mb-2 font-semibold text-gray-800">
+          Lab Results ({{.LabResults.Date}})
+        </h4>
+        <table class="mb-4 w-full border-collapse">
+          <thead>
+            <tr class="border-b border-gray-200">
+              <th class="py-2 pr-4 text-left font-semibold text-gray-700">
+                Test
+              </th>
+              <th class="py-2 pr-4 text-left font-semibold text-gray-700">
+                Result
+              </th>
+              <th class="py-2 pr-4 text-left font-semibold text-gray-700">
+                Reference Range
+              </th>
+              <th class="py-2 text-left font-semibold text-gray-700">Status</th>
+            </tr>
+          </thead>
+          <tbody>
+            {{range .LabResults.Tests}}
+            <tr class="border-b border-gray-100">
+              <td class="py-2 pr-4 text-sm text-gray-900">{{.Name}}</td>
+              <td class="py-2 pr-4 text-sm text-gray-900">
+                {{.Value}} {{.Unit}}
+              </td>
+              <td class="py-2 pr-4 text-sm text-gray-600">
+                {{.ReferenceRange}}
+              </td>
+              <td
+                class="py-2 text-sm {{if eq .Status "Normal"}}text-green-600{{else if eq .Status "Abnormal"}}text-red-600{{else}}text-yellow-600{{end}}"
+              >
+                {{.Status}}
+              </td>
+            </tr>
+            {{end}}
+          </tbody>
+        </table>
+      </div>
+      {{end}}
+
+      <!-- Treatment Response Assessment -->
+      {{if .TreatmentResponse}}
+      <div class="mb-8">
+        <h3
+          class="mb-3 border-b border-gray-300 pb-2 text-lg font-bold text-gray-900"
+        >
+          Treatment Response Assessment
+        </h3>
+        <div class="space-y-3 text-sm text-gray-700">
+          {{if .TreatmentResponse.PositiveChanges}}
+          <div>
+            <span class="font-medium">Positive Changes:</span> {{.TreatmentResponse.PositiveChanges}}
+          </div>
+          {{end}}
+          {{if .TreatmentResponse.PersistentIssues}}
+          <div>
+            <span class="font-medium">Persistent Issues:</span> {{.TreatmentResponse.PersistentIssues}}
+          </div>
+          {{end}}
+          {{if .TreatmentResponse.DoseAdjustments}}
+          <div>
+            <span class="font-medium">Recent Adjustments:</span> {{.TreatmentResponse.DoseAdjustments}}
+          </div>
+          {{end}}
+        </div>
+      </div>
+      {{end}}
+
+      <!-- Goals and Desired Outcomes -->
+      {{if .TreatmentGoals}}
+      <div class="page-break-before mb-8">
+        <h3
+          class="mb-3 border-b border-gray-300 pb-2 text-lg font-bold text-gray-900"
+        >
+          Goals and Desired Outcomes
+        </h3>
+        <div class="space-y-2 text-sm text-gray-700">
+          {{if .TreatmentGoals.ShortTerm}}
+          <div>
+            <span class="font-medium">Short-term Goals:</span> {{.TreatmentGoals.ShortTerm}}
+          </div>
+          {{end}}
+          {{if .TreatmentGoals.LongTerm}}
+          <div>
+            <span class="font-medium">Long-term Goals:</span> {{.TreatmentGoals.LongTerm}}
+          </div>
+          {{end}}
+          {{if .TreatmentGoals.TargetLevels}}
+          <div>
+            <span class="font-medium">Target Hormone Levels:</span> {{.TreatmentGoals.TargetLevels}}
+          </div>
+          {{end}}
+        </div>
+      </div>
+      {{end}}
+
+      <!-- Recommendations and Next Steps -->
+      <div class="mb-8">
+        <h3
+          class="mb-3 border-b border-gray-300 pb-2 text-lg font-bold text-gray-900"
+        >
+          Recommendations and Next Steps
+        </h3>
+
+        {{if .Hormones}}
+        {{range $index, $hormone := .Hormones}}
+        <div
+          class="{{if ne $index (sub (len $.Hormones) 1)}}border-b pb-6{{end}} mb-6 border-gray-100"
+        >
+          <h4 class="text-md mb-3 font-semibold text-gray-800">
+            {{.Name}} Recommendations
+          </h4>
+
+          <div class="mb-4">
+            <h5 class="mb-2 text-sm font-medium text-gray-700">
+              Recommended Dosage
+            </h5>
+            <div class="mb-4">
+              <div class="mb-3">
+                <span class="text-4xl font-bold text-blue-600"
+                  >{{.FinalDosage}}</span
+                >
+                <span class="ml-2 text-2xl font-semibold text-gray-600"
+                  >mg</span
+                >
+              </div>
+
+              <p class="max-w-2xl text-sm text-gray-600">
+                {{if .IsOverride}}
+                This dosage has been adjusted by your healthcare provider based on clinical assessment.
+                {{else}}
+                Based on comprehensive analysis of patient factors, laboratory results, and clinical guidelines.
+                {{end}}
+              </p>
+            </div>
+          </div>
+
+          {{if .IsOverride}}
+          <!-- Provider Override Information -->
+          <div class="mb-6 border-l-4 border-blue-500 bg-blue-50 p-4">
+            <h5 class="mb-3 text-sm font-semibold text-blue-800">
+              Provider Adjustment Applied
+            </h5>
+
+            <div class="mb-3 space-y-1">
+              <div class="flex">
+                <span class="w-48 text-xs font-medium text-gray-700"
+                  >Algorithm Recommendation:</span
+                >
+                <span class="text-xs text-gray-900"
+                  >{{.CalculatedDosage}}mg</span
+                >
+              </div>
+              <div class="flex">
+                <span class="w-48 text-xs font-medium text-gray-700"
+                  >Provider Dosage:</span
+                >
+                <span class="text-xs font-semibold text-blue-600"
+                  >{{.FinalDosage}}mg</span
+                >
+              </div>
+              {{if .OverrideDate}}
+              <div class="flex">
+                <span class="w-48 text-xs font-medium text-gray-700"
+                  >Date Applied:</span
+                >
+                <span class="text-xs text-gray-900"
+                  >{{.OverrideDate}}</span
+                >
+              </div>
+              {{end}}
+            </div>
+
+            {{if .OverrideReason}}
+            <div class="border-t border-blue-200 pt-3">
+              <h6 class="mb-2 text-xs font-medium text-blue-800">
+                Clinical Notes:
+              </h6>
+              <p class="text-xs text-gray-700 italic">
+                "{{.OverrideReason}}"
+              </p>
+            </div>
+            {{end}}
+          </div>
+          {{else}}
+          <!-- Pellet Distribution -->
+          {{if .Distribution}}
+          <div class="mb-6">
+            <h5 class="mb-3 text-sm font-medium text-gray-700">
+              Suggested Pellet Breakdown
+            </h5>
+
+            <div class="text-sm text-gray-700">
+              {{range $pelletIndex, $pellet := .Distribution}}
+              <span class="mr-2"
+                >{{.Pellet}}mg x {{.Count}} pellets</span
+              >{{if ne $pelletIndex (sub (len $.Distribution) 1)}}<span class="mx-2 text-gray-400">|</span>{{end}}
+              {{end}}
+            </div>
+
+            <p class="mt-3 text-sm text-gray-500">
+              Pellet distribution is optimized for consistent hormone release
+              and patient comfort.
+            </p>
+          </div>
+          {{end}}
+          {{end}}
+          {{if .MaxSafeDose}}
+          <div class="mb-3">
+            <div class="flex">
+              <span class="w-48 text-sm font-semibold text-gray-700"
+                >Maximum Safe Dosage:</span
+              >
+              <span class="text-sm font-semibold text-green-600"
+                >{{.MaxSafeDose}} mg</span
+              >
+            </div>
+          </div>
+          {{end}}
+        </div>
+        {{end}}
+        {{else}}
+        <!-- Fallback for single hormone (backwards compatibility) -->
+        <div class="mb-4">
+          <h4 class="text-md mb-2 font-semibold text-gray-800">
+            Recommended Dosage
+          </h4>
+          <div class="mb-4">
+            <div class="mb-3">
+              <span class="text-4xl font-bold text-blue-600"
+                >{{.FinalDosage}}</span
+              >
+              <span class="ml-2 text-2xl font-semibold text-gray-600">mg</span>
+            </div>
+
+            <p class="max-w-2xl text-sm text-gray-600">
+              {{if .IsOverride}}
+              This dosage has been adjusted by your healthcare provider based on clinical assessment.
+              {{else}}
+              Based on comprehensive analysis of patient factors, laboratory results, and clinical guidelines.
+              {{end}}
+            </p>
+          </div>
+        </div>
+        {{end}}
+        {{if .Recommendations}}
+        <div class="mb-6">
+          <h4 class="text-md mb-2 font-semibold text-gray-800">
+            Additional Recommendations
+          </h4>
+          <div class="space-y-2 text-sm text-gray-700">
+            {{if .Recommendations.Lifestyle}}
+            <div>
+              <span class="font-medium">Lifestyle Modifications:</span> {{.Recommendations.Lifestyle}}
+            </div>
+            {{end}}
+            {{if .Recommendations.Supplements}}
+            <div>
+              <span class="font-medium">Supplements:</span> {{.Recommendations.Supplements}}
+            </div>
+            {{end}}
+            {{if .Recommendations.FollowUp}}
+            <div>
+              <span class="font-medium">Follow-up Required:</span> {{.Recommendations.FollowUp}}
+            </div>
+            {{end}}
+          </div>
+        </div>
+        {{end}}
+      </div>
+
+      <!-- Timeline and Monitoring Plan -->
+      <div class="mb-8">
+        <h3
+          class="mb-3 border-b border-gray-300 pb-2 text-lg font-bold text-gray-900"
+        >
+          Timeline and Monitoring Plan
+        </h3>
+
+        {{if .MonitoringPlan}}
+        <div class="space-y-2 text-sm text-gray-700">
+          {{if .MonitoringPlan.NextLabs}}
+          <div>
+            <span class="font-medium">Next Lab Work:</span> {{.MonitoringPlan.NextLabs}}
+          </div>
+          {{end}}
+          {{if .MonitoringPlan.FollowUpAppointment}}
+          <div>
+            <span class="font-medium">Follow-up Appointment:</span> {{.MonitoringPlan.FollowUpAppointment}}
+          </div>
+          {{end}}
+          {{if .MonitoringPlan.ReassessmentTimeline}}
+          <div>
+            <span class="font-medium">Progress Reassessment:</span> {{.MonitoringPlan.ReassessmentTimeline}}
+          </div>
+          {{end}}
+          {{if .MonitoringPlan.MetricsToTrack}}
+          <div>
+            <span class="font-medium">Metrics to Monitor:</span> {{.MonitoringPlan.MetricsToTrack}}
+          </div>
+          {{end}}
+        </div>
+        {{else}}
+        <div class="space-y-2 text-sm text-gray-700">
+          <div>
+            <span class="font-medium">Next Lab Work:</span> Recommended in 6-8
+            weeks to assess hormone levels
+          </div>
+          <div>
+            <span class="font-medium">Follow-up Appointment:</span> Schedule
+            within 2-3 months to review progress
+          </div>
+          <div>
+            <span class="font-medium">Progress Reassessment:</span> Ongoing
+            monitoring of symptoms and hormone levels
+          </div>
+        </div>
+        {{end}}
+      </div>
+
+      <!-- Safety Information -->
+      <div class="mb-8">
+        <h3
+          class="mb-3 border-b border-gray-300 pb-2 text-lg font-bold text-gray-900"
+        >
+          Safety Information
+        </h3>
+
+        <p class="text-sm text-gray-700">
+          All dosage recommendations are within established safety parameters
+          for hormone replacement therapy. The prescribed dosages have been
+          calculated based on your individual patient profile and clinical
+          guidelines.
+        </p>
+      </div>
+
+      <!-- Footer -->
+      <div class="keep-together border-t-2 border-gray-300 pt-8 text-center">
+        <div class="mb-6">
+          <div class="mb-2 flex items-center justify-center">
+            <div class="mr-3">
+              <img
+                src="https://app.equilibriahrt.com/logo.png"
+                alt="Equilibria HRT Logo"
+                class="h-10 w-10"
+              />
+            </div>
+            <div>
+              <p class="font-duru font-bold text-gray-900">
+                Equilibria Diagnostics
+              </p>
+              <p class="text-sm text-gray-600">
+                Personalized Hormone Replacement Therapy
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <div class="space-y-2 text-sm text-gray-500">
+          <p>
+            This report contains confidential medical information. Please keep
+            secure and share only with authorized healthcare providers.
+          </p>
+          <p>
+            For questions about this report, please contact your healthcare
+            provider.
+          </p>
+          <p class="font-medium">
+            © {{.CurrentYear}} Equilibria Diagnostics. All rights reserved.
+          </p>
+        </div>
+      </div>
+    </div>
+  </body>
+</html>
