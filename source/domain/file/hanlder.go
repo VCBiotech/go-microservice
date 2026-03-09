@@ -167,3 +167,74 @@ func (fh *FileHandler) Insert(c echo.Context) error {
 
 	return c.JSON(http.StatusOK, userMessage)
 }
+
+// Handler to render HTML template and return PDF directly (preview)
+func (fh *FileHandler) PreviewTemplate(c echo.Context) error {
+	logger := telemetry.SLogger(c.Request().Context())
+
+	// Parse the multipart form
+	err := c.Request().ParseMultipartForm(10 << 20)
+	if err != nil {
+		errMsg := map[string]string{"Error": "Unable to parse form"}
+		logger.Error("Could not parse form", errMsg)
+		return c.JSON(http.StatusBadRequest, errMsg)
+	}
+
+	// Get the template file from the form
+	templateFile, _, err := c.Request().FormFile("template")
+	if err != nil {
+		errMsg := map[string]string{"Error": "Error retrieving template file"}
+		logger.Error("Could not retrieve template file", errMsg)
+		return c.JSON(http.StatusBadRequest, errMsg)
+	}
+	defer templateFile.Close()
+
+	// Read the template file
+	templateBytes, err := io.ReadAll(templateFile)
+	if err != nil {
+		errMsg := map[string]string{"Error": "Error reading template file"}
+		logger.Error("Could not read template file", errMsg)
+		return c.JSON(http.StatusBadRequest, errMsg)
+	}
+
+	// Get the JSON data from the form
+	jsonData := c.FormValue("jsonData")
+	if jsonData == "" {
+		errMsg := map[string]string{"Error": "jsonData field is required"}
+		logger.Error("jsonData field is required", errMsg)
+		return c.JSON(http.StatusBadRequest, errMsg)
+	}
+
+	// Parse the JSON data into a map
+	var templateData map[string]interface{}
+	err = json.Unmarshal([]byte(jsonData), &templateData)
+	if err != nil {
+		errMsg := map[string]string{"Error": fmt.Sprintf("Failed to parse jsonData: %v", err)}
+		logger.Error("Failed to parse jsonData", errMsg)
+		return c.JSON(http.StatusBadRequest, errMsg)
+	}
+
+	templateData["BucketName"] = "name"
+
+	//Parse the template
+	formBuf, contentType, err := utils.ParseTemplate(templateBytes, templateData)
+	if err != nil {
+		errMsg := map[string]string{"Error": fmt.Sprintf("Failed to parse template: %v", err)}
+		logger.Error("Failed to parse template", errMsg)
+		return c.JSON(http.StatusInternalServerError, errMsg)
+	}
+
+	// Send to PDF conversion service goteb
+	pdfBuf, err := utils.ParseTemplateToPDF(formBuf, contentType)
+	if err != nil {
+		errMsg := map[string]string{"Error": fmt.Sprintf("Failed to convert to PDF: %v", err)}
+		logger.Error("Failed to convert to PDF", errMsg)
+		return c.JSON(http.StatusInternalServerError, errMsg)
+	}
+
+	// Generate a unique filename for the PDF download header
+	pdfFilename := fmt.Sprintf("preview-%s.pdf", time.Now().Format("20060102-150405"))
+	c.Response().Header().Set("Content-Disposition", fmt.Sprintf("inline; filename=%s", pdfFilename))
+
+	return c.Blob(http.StatusOK, "application/pdf", pdfBuf.Bytes())
+}

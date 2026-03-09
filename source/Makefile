@@ -1,5 +1,6 @@
-ifeq ($(shell test -e './core/.envs/base.env' && echo -n yes),yes)
-	include ./config/.env
+ifneq (,$(wildcard ./.env))
+	include .env
+	export
 endif
 
 HELP_FUN = \
@@ -21,8 +22,12 @@ help: ##@Help Show this help
 	@perl -e '$(HELP_FUN)' $(MAKEFILE_LIST)
 
 dev: ##@Application Run development server with hot reload
-	lsof -t -i tcp:3000 | xargs kill -9
-	air | jq -R "fromjson?"
+	lsof -t -i tcp:3000 | xargs -r kill -9
+	@echo "Starting Gotenberg PDF service..."
+	docker run -d --rm --name gotenberg-dev -p 3001:3000 gotenberg/gotenberg:8 || echo "Gotenberg is already running"
+	$$(go env GOPATH)/bin/air | jq -R "fromjson?" || true
+	@echo "Stopping Gotenberg PDF service..."
+	docker stop gotenberg-dev || true
 
 build: ##@Build build the application using Go compiler
 	docker build --tag '$(REPOSITORY):latest' .

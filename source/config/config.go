@@ -36,11 +36,13 @@ type AppConfig struct {
 	ServerPort    uint16
 	Database      DatabaseConfig
 	BucketName    string
+	GotenbergURL  string
 	StorageConfig StorageConfig
 }
 
 func LoadConfig() *AppConfig {
 	cfg := AppConfig{
+		GotenbergURL: "http://localhost:3001",
 		Database: DatabaseConfig{
 			Name:     "equilibria_files",
 			Port:     5432,
@@ -124,11 +126,18 @@ func LoadConfig() *AppConfig {
 			cfg.StorageConfig.ReplicateToAllClouds = ReplicateToAllClouds == "true"
 		}
 
+		if GotenbergURL, exists := secretsMap["GOTENBERG_URL"]; exists {
+			cfg.GotenbergURL = GotenbergURL
+		}
 	}
 
 	cfg.StorageConfig.AWSRegion = os.Getenv("AWS_REGION")
 	cfg.StorageConfig.AWSAccessKeyID = os.Getenv("AWS_ACCESS_KEY_ID")
 	cfg.StorageConfig.AWSSecretAccessKey = os.Getenv("AWS_SECRET_ACCESS_KEY")
+
+	if gotenbergEnv := os.Getenv("GOTENBERG_URL"); gotenbergEnv != "" {
+		cfg.GotenbergURL = gotenbergEnv
+	}
 
 	return &cfg
 }

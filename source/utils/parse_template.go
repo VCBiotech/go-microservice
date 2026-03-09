@@ -2,16 +2,34 @@ package utils
 
 import (
 	"bytes"
+	"file-manager/config"
 	"fmt"
 	"html/template"
 	"io"
 	"mime/multipart"
 	"net/http"
+	"reflect"
 )
 
 func ParseTemplate(templateBytes []byte, templateData map[string]interface{}) (bytes.Buffer, string, error) {
-	//Parse the template
-	tmpl, err := template.New("uploaded").Parse(string(templateBytes))
+	// Define custom functions used in the template
+	funcMap := template.FuncMap{
+		"lenSafe": func(v any) int {
+			if v == nil {
+				return 0
+			}
+			val := reflect.ValueOf(v)
+			switch val.Kind() {
+			case reflect.Slice, reflect.Array, reflect.Map, reflect.String:
+				return val.Len()
+			default:
+				return 0
+			}
+		},
+	}
+
+	//Parse the template with custom functions
+	tmpl, err := template.New("uploaded").Funcs(funcMap).Parse(string(templateBytes))
 	if err != nil {
 		return bytes.Buffer{}, "", err
 	}
@@ -44,8 +62,11 @@ func ParseTemplate(templateBytes []byte, templateData map[string]interface{}) (b
 
 func ParseTemplateToPDF(formBuf bytes.Buffer, contentType string) (bytes.Buffer, error) {
 
+	// Load configuration to get the Gotenberg URL
+	cfg := config.LoadConfig()
+
 	// Send to PDF conversion service goteb
-	pdfServiceURL := "http://localhost:3001/forms/chromium/convert/html"
+	pdfServiceURL := fmt.Sprintf("%s/forms/chromium/convert/html", cfg.GotenbergURL)
 	req, err := http.NewRequest("POST", pdfServiceURL, &formBuf)
 	if err != nil {
 		return bytes.Buffer{}, err
