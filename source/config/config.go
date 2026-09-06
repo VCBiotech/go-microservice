@@ -131,12 +131,39 @@ func LoadConfig() *AppConfig {
 		}
 	}
 
-	cfg.StorageConfig.AWSRegion = os.Getenv("AWS_REGION")
-	cfg.StorageConfig.AWSAccessKeyID = os.Getenv("AWS_ACCESS_KEY_ID")
-	cfg.StorageConfig.AWSSecretAccessKey = os.Getenv("AWS_SECRET_ACCESS_KEY")
-
-	if gotenbergEnv := os.Getenv("GOTENBERG_URL"); gotenbergEnv != "" {
-		cfg.GotenbergURL = gotenbergEnv
+	if v := os.Getenv("AWS_REGION"); v != "" {
+		cfg.StorageConfig.AWSRegion = v
+	}
+	if v := os.Getenv("AWS_ACCESS_KEY_ID"); v != "" {
+		cfg.StorageConfig.AWSAccessKeyID = v
+	}
+	if v := os.Getenv("AWS_SECRET_ACCESS_KEY"); v != "" {
+		cfg.StorageConfig.AWSSecretAccessKey = v
+	}
+	if v := os.Getenv("BUCKET_NAME"); v != "" {
+		cfg.BucketName = v
+	}
+	if v := os.Getenv("DEFAULT_CLOUD"); v != "" {
+		cfg.StorageConfig.DefaultCloud = v
+	}
+	if v := os.Getenv("GCP_PROJECT_ID"); v != "" {
+		cfg.StorageConfig.GCPProjectID = v
+	}
+	if v := os.Getenv("GCP_CREDENTIALS_FILE"); v != "" {
+		cfg.StorageConfig.GCPCredentialsFile = v
+	}
+	if v := os.Getenv("REPLICATE_TO_ALL_CLOUDS"); v != "" {
+		cfg.StorageConfig.ReplicateToAllClouds = v == "true"
+	}
+	if v := os.Getenv("GOTENBERG_URL"); v != "" {
+		cfg.GotenbergURL = v
+	}
+	if v := os.Getenv("SERVER_PORT"); v != "" {
+		port, err := strconv.ParseUint(v, 10, 16)
+		if err != nil {
+			log.Fatalf("Error parsing SERVER_PORT: %v", err)
+		}
+		cfg.ServerPort = uint16(port)
 	}
 
 	return &cfg

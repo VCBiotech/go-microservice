@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"os"
 	"time"
 
 	"github.com/labstack/echo/v4"
@@ -36,12 +37,12 @@ func New(config *AppConfig) *App {
 		config: config,
 	}
 
-	// Initialize storage manager
 	storageManager, err := storage.NewStorageManager(config)
 	if err != nil {
-		log.Fatalf("Failed to initialize storage manager: %v", err)
+		log.Printf("Storage manager not initialized: %v", err)
+	} else {
+		app.storageManager = storageManager
 	}
-	app.storageManager = storageManager
 
 	// Initialize Metadata Store (using in-memory for demo)
 	metadataStore := metadata.NewInMemoryMetadataStore()
@@ -55,30 +56,31 @@ func New(config *AppConfig) *App {
 func (a *App) Start(ctx context.Context) error {
 	logger := telemetry.SLogger(ctx)
 
-	// Start server
+	port := os.Getenv("PORT")
+	if port == "" {
+		port = fmt.Sprintf("%d", a.config.ServerPort)
+	}
+
+	// Bind all interfaces so Vercel (and other hosts) can reach the server.
 	server := &http.Server{
-		Addr:    fmt.Sprintf("localhost:%d", a.config.ServerPort),
+		Addr:    ":" + port,
 		Handler: a.router,
 	}
 
-	// Database connection is now established in New()
 	logger.Info("Starting application server...")
 
 	ch := make(chan error, 1)
 
-	// Call the main function using another thread
 	go func() {
-		// Handle error on startup
 		err := server.ListenAndServe()
 		if err != nil {
 			ch <- fmt.Errorf("failed to start server: %w", err)
 		}
-		// Close the channel
 		close(ch)
 	}()
 
 	logger.Info("Application startup complete.")
-	logger.Info(fmt.Sprintf("Listening on address localhost, port %d", a.config.ServerPort))
+	logger.Info(fmt.Sprintf("Listening on port %s", port))
 
 	select {
 	// Select one of the channels, the one that returns first
@@ -109,20 +111,17 @@ func (a *App) loadMiddleware() {
 	router.Use(telemetry.Tracing())
 	router.Use(middleware.Recover())
 	router.Use(middleware.RateLimiter(middleware.NewRateLimiterMemoryStore(1000)))
-	router.GET("/health", func(c echo.Context) error {
-		return c.String(http.StatusOK, "Ok")
-	})
-	router.Use(auth.ServerAuthMiddleware())
-
 	a.router = router
 }
 
 func (a *App) loadRoutes() {
+	a.router.GET("/health", func(c echo.Context) error {
+		return c.String(http.StatusOK, "Ok")
+	})
 	a.router.GET("/", func(c echo.Context) error {
 		return c.String(http.StatusOK, "File Manager Service.")
-	})
+	}, auth.ServerAuthMiddleware())
 
-	// App V1
-	fileGroup := a.router.Group("/v1/files")
+	fileGroup := a.router.Group("/v1/files", auth.ServerAuthMiddleware())
 	a.loadFileRoutes(fileGroup)
 }

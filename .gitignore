@@ -28,3 +28,8 @@ go.work
 
 # All Temp
 *tmp*
+
+# Vercel
+.vercel
+.env.local
+.env*

@@ -1,0 +1,7 @@
+FROM gotenberg/gotenberg:8-chromium
+
+# Vercel injects PORT (default 80). Gotenberg defaults to 3000.
+ENV API_PORT_FROM_ENV=PORT
+ENV API_TIMEOUT=60s
+ENV CHROMIUM_AUTO_START=true
+ENV CHROMIUM_START_TIMEOUT=30s
