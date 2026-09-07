@@ -15,15 +15,6 @@ func (a *App) loadStorageManager() (*storage.StorageManager, error) {
 }
 
 func (a *App) loadFileRoutes(g *echo.Group) {
-	if a.storageManager == nil {
-		unavailable := func(c echo.Context) error {
-			return echo.NewHTTPError(http.StatusServiceUnavailable, "storage not configured")
-		}
-		g.POST("/render-template", unavailable)
-		g.POST("/preview", unavailable)
-		return
-	}
-
 	fileRepo, err := file.NewFileRepo(a.storageManager, a.metadataStore, a.config)
 	if err != nil {
 		log.Printf("Failed to create file repository: %v", err)
@@ -37,6 +28,12 @@ func (a *App) loadFileRoutes(g *echo.Group) {
 
 	fileHandler := file.NewFileHandler(fileRepo)
 
-	g.POST("/render-template", fileHandler.Insert)
+	if a.storageManager == nil {
+		g.POST("/render-template", func(c echo.Context) error {
+			return echo.NewHTTPError(http.StatusServiceUnavailable, "storage not configured")
+		})
+	} else {
+		g.POST("/render-template", fileHandler.Insert)
+	}
 	g.POST("/preview", fileHandler.PreviewTemplate)
 }
